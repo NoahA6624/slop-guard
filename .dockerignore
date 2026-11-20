@@ -1,0 +1,18 @@
+# Allow only source and trusted dependency manifests into the build context.
+**
+!Dockerfile
+!requirements.txt
+!package.json
+!package-lock.json
+!slopguard/
+!slopguard/**
+!static/
+!static/**
+!migrations/
+!migrations/**
+!content/
+!content/**
+!scripts/
+!scripts/check-js.cjs
+**/__pycache__/
+**/*.pyc
