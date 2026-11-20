@@ -1,0 +1,15 @@
+{
+  "name": "slop-guard",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": ".venv/Scripts/python -m uvicorn slopguard.app:app --host 127.0.0.1 --port 8000",
+    "test": ".venv/Scripts/python -m pytest -q"
+  },
+  "dependencies": {
+    "typescript": "5.9.3"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#fafbf9" />
+    <meta
+      name="description"
+      content="Evidence-first code review for AI-assisted projects. Find the problem. Inspect the proof. Leave with a fix."
+    />
+    <title>Slop Guard — Make the code better.</title>
+    <link rel="icon" href="/static/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header>
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Slop Guard home"
+          ><svg viewBox="0 0 28 32" aria-hidden="true">
+            <path d="M14 2 26 7v10c0 6-7 11-12 13C9 28 2 23 2 17V7Z" />
+            <path d="m8 16 4 4 8-9" /></svg
+          ><span
+            >slop<span class="brand-light">guard</span
+            ><span class="brand-period">.</span></span
+          ></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="/" data-page="scan">Repo grader</a
+          ><a href="/community" data-page="community">Community Slop</a
+          ><a href="/library" data-page="library">Anti-Slop Library</a
+          ><a href="/forum" data-page="forum">Slop Form</a
+          ><a href="/portfolio" data-page="portfolio">My Slop</a>
+        </nav>
+        <button class="text-button signin" id="signin">Sign in</button>
+      </div>
+    </header>
+    <main id="main" tabindex="-1"><div id="view"></div></main>
+    <footer>
+      <a class="footer-brand" href="/">slopguard.</a
+      ><span>Better code. Thicker skin.</span
+      ><a href="/methodology">How grading works</a
+      ><a
+        href="https://github.com/NoahA6624/slop-guard"
+        target="_blank"
+        rel="noopener"
+        >Source on GitHub</a
+      ><span class="footer-note">Free to scan. Evidence included.</span>
+    </footer>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="modal">
+      <div class="dialog-top">
+        <span id="modal-label">Slop Guard</span
+        ><button id="close-modal" class="icon-button" aria-label="Close dialog">
+          ×
+        </button>
+      </div>
+      <div id="modal-body"></div>
+    </dialog>
+  </body>
+</html>
