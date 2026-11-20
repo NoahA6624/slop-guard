@@ -9,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["GEMINI_FREE_TIER_CONFIRMED"] = "false"
+os.environ["AI_ENABLED"] = "false"
 os.environ["REVIEW_PROVIDER"] = "gemini"
 from fastapi.responses import HTMLResponse
 import uvicorn
@@ -56,6 +57,34 @@ with db.connect() as conn:
         ("local-fixture", "local-fixture", json.dumps(report), time.time()),
     )
 module.user = lambda request: {"id": "fixture-member", "name": "Local fixture member"}
+
+# Explicit UI-only quota demonstration. No provider calls are enabled in this process.
+if "--quota-demo" in sys.argv:
+    quota_demo = {"state": "available"}
+
+    def fixture_quota(db, now, tokens=0):
+        state = quota_demo["state"]
+        return {
+            "state": state,
+            "server_time": now,
+            "remaining": 5 if state == "available" else 0,
+            "retry_at": now + 60
+            if state == "cooldown"
+            else now + 3600
+            if state == "exhausted"
+            else None,
+            "message": "Fixture AI availability: " + state,
+            "limits_kind": "explicit local fixture",
+        }
+
+    module.review.quota_status = fixture_quota
+
+    @module.app.post("/api/fixture/quota/{state}")
+    def set_fixture_quota(state: str):
+        if state not in {"available", "cooldown", "exhausted", "unknown", "disabled"}:
+            return {"error": "Unsupported fixture state"}
+        quota_demo["state"] = state
+        return {"state": state, "fixture": True}
 
 
 @module.app.middleware("http")

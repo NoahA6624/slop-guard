@@ -28,6 +28,26 @@ def migrate():
             db.execute(
                 "ALTER TABLE quota ADD COLUMN provider TEXT NOT NULL DEFAULT 'gemini'"
             )
+        if "neurons" not in [r["name"] for r in db.execute("PRAGMA table_info(quota)")]:
+            db.execute(
+                "ALTER TABLE quota ADD COLUMN neurons INTEGER NOT NULL DEFAULT 0"
+            )
+
+        columns = {r["name"] for r in db.execute("PRAGMA table_info(quota)")}
+        for name, kind in {
+            "input_tokens": "INTEGER",
+            "output_tokens": "INTEGER",
+            "total_tokens": "INTEGER",
+            "status": "TEXT NOT NULL DEFAULT 'reserved'",
+            "http_status": "INTEGER",
+            "completed": "REAL",
+        }.items():
+            if name not in columns:
+                db.execute(f"ALTER TABLE quota ADD COLUMN {name} {kind}")
+        if "status" not in columns:
+            db.execute("UPDATE quota SET status='legacy_unknown'")
+        db.execute("CREATE INDEX IF NOT EXISTS quota_provider_at ON quota(provider,at)")
+        db.execute("PRAGMA user_version=2")
 
 
 def rows(sql, args=()):

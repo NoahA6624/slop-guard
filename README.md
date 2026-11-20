@@ -4,7 +4,15 @@
 
 A local-first, evidence-based repository grader. Python/FastAPI serves a buildless responsive interface; SQLite holds bounded cached reports, quota reservations, accounts, votes, discussions, and consent. Nothing in a submitted repository is executed.
 
-## Run locally
+## Run with Docker
+
+```powershell
+docker compose up -d --build --wait
+```
+
+Open [Slop Guard locally](http://127.0.0.1:8000). The container uses the existing `data/` SQLite database and runtime `.env`, runs as non-root, and is limited to 512 MiB / one CPU. Secrets and fixture harnesses are excluded from the image. Stop the venv preview before starting Compose against the same database. See [operations](docs/OPERATIONS.md) for backups and Linux data-directory ownership.
+
+## Run locally without Docker
 
 Python 3.12+ and Node 20+ are required. From this checkout:
 

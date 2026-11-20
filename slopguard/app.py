@@ -91,7 +91,8 @@ def health():
 @app.get("/api/config")
 def config(request: Request):
     with db.connect() as conn:
-        quota = review.quota_status(conn, time.time())
+        # Hold enough room for a full bounded review, including its maximum output.
+        quota = review.quota_status(conn, time.time(), tokens=review.limits()["tpm"])
     account = user(request)
     return {
         "google_client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
@@ -100,6 +101,7 @@ def config(request: Request):
             account and account["id"] in os.getenv("ADMIN_GOOGLE_SUBS", "").split(",")
         ),
         "quota": quota,
+        "roast": {"enabled": roast.enabled(), "limits": roast.limits()},
         "rubric": scanner.RUBRIC,
     }
 
@@ -168,6 +170,7 @@ def logout(request: Request):
 
 class Scan(BaseModel):
     repo: str = Field(max_length=250)
+    include_ai: bool = True
 
 
 def report_by_id(report_id):
@@ -184,7 +187,7 @@ async def scan(body: Scan, request: Request):
         repo = scanner.parse_repo(body.repo)
         sha = await scanner.resolve(repo)
         key = hashlib.sha256(
-            f"{repo.lower()}:{sha}:{scanner.RUBRIC}:{review.PROMPT_VERSION}:{review.provider()}:{review.model()}:{review.enabled()}:{roast.enabled()}:{roast.MODEL}:{roast.VERSION}:{scanner.MAX_FILES}:{scanner.MAX_BYTES}".encode()
+            f"{repo.lower()}:{sha}:{scanner.RUBRIC}:{review.PROMPT_VERSION}:{review.provider()}:{review.model()}:{review.enabled()}:{roast.enabled()}:{roast.MODEL}:{roast.VERSION}:{scanner.MAX_FILES}:{scanner.MAX_BYTES}:{body.include_ai}".encode()
         ).hexdigest()
         cached = db.rows("SELECT body FROM reports WHERE cache_key=?", (key,))
         if cached:
@@ -204,12 +207,12 @@ async def scan(body: Scan, request: Request):
             allow_ai = review.provider() != "gemini" or policy.loopback_request(request)
             ai = (
                 await review.review(files)
-                if files and allow_ai
+                if files and allow_ai and body.include_ai
                 else {
                     "score": None,
                     "findings": [],
                     "status": "unavailable",
-                    "uncertainty": "No eligible code or local-pilot audience to review.",
+                    "uncertainty": "AI review was not requested or no eligible code or audience was available. Deterministic results remain available.",
                 }
             )
             findings = result.pop("findings") + ai.pop("findings")
@@ -224,7 +227,11 @@ async def scan(body: Scan, request: Request):
                     f["start"],
                 )
             )
-            roast_source = await roast.refine(findings)
+            roast_source = (
+                await roast.refine(findings)
+                if body.include_ai
+                else "local templates; AI not requested"
+            )
             for f in findings:
                 f["url"] = scanner.source_url(repo, sha, f)
             coverage.pop("paths", None)

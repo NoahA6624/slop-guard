@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["GEMINI_FREE_TIER_CONFIRMED"] = "false"
+os.environ["AI_ENABLED"] = "false"
 import psutil
 from fastapi.testclient import TestClient
 from slopguard import db, scanner

@@ -15,11 +15,11 @@ Example non-secret configuration after verification:
 ```dotenv
 REVIEW_PROVIDER=groq
 GROQ_MODEL=openai/gpt-oss-120b
-GROQ_RPM=1
-GROQ_TPM=8000
-GROQ_RPD=25
-GROQ_TPD=180000
-QUOTA_LIMITS_KIND=conservative local ceiling; provider limits also apply
+GROQ_RPM=15
+GROQ_TPM=4000
+GROQ_RPD=500
+GROQ_TPD=100000
+QUOTA_LIMITS_KIND=half of verified free-tier allowance
 ```
 
 Do not interpret 200,000 / 4,000 as a guarantee of 50 reviews: output, schema, reasoning, failed attempts, other apps, and retries consume capacity. We conservatively reserve input plus maximum output, count failed attempts, and never retry automatically. Groq's exact account limits and response timing take precedence. The local daily ceiling resets at midnight UTC; it does not claim to replenish the organization's provider allowance.
@@ -31,10 +31,10 @@ Do not interpret 200,000 / 4,000 as a guarantee of 50 reviews: output, schema, r
 1. Open the [Cloudflare dashboard](https://dash.cloudflare.com/), select an account on **Workers Free**, and open **Workers AI → Use REST API**. No Worker deployment, domain purchase, or paid subscription is needed for the REST integration.
 2. Choose **Create a Workers AI API Token**, review the template, and limit it to this account. The REST guide specifies Workers AI Read and Edit permissions for a custom token. Do not use a global API key or grant DNS, billing, or unrelated account permissions.
 3. Put the token in `CLOUDFLARE_API_TOKEN` and the account ID in `CLOUDFLARE_ACCOUNT_ID`. The code fixes the model to `@cf/zai-org/glm-4.7-flash`.
-4. Verify Workers Free and no paid billing route or AI Gateway credits, then set `CLOUDFLARE_FREE_PLAN_CONFIRMED=true`, `CLOUDFLARE_BILLING_DISABLED=true`, and a seven-day `CLOUDFLARE_VERIFIED_UNTIL`. Start with `CLOUDFLARE_ROAST_RPD=1` to audition it.
+4. Verify Workers Free and no paid billing route or AI Gateway credits, then set `CLOUDFLARE_FREE_PLAN_CONFIRMED=true`, `CLOUDFLARE_BILLING_DISABLED=true`, and a seven-day `CLOUDFLARE_VERIFIED_UNTIL`. Set `CLOUDFLARE_ROAST_RPM=150` and `CLOUDFLARE_NEURONS_PER_DAY=5000`. `CLOUDFLARE_ROAST_RPD=0` removes only the optional additional request/day ceiling; the neuron and minute caps still apply.
 5. A fresh scan may request three short alternatives for each of its top three verified findings in one bounded call. Results are saved with the report. If the model is unavailable or rejects the format, the app uses cached reviewer wording or local templates. Scores, evidence, and fix plans never change based on a roast.
 
-Workers Free includes 10,000 neurons/day and further usage fails unless the account is upgraded. The app's request ceiling is not a neuron meter: monitor shared account usage in the dashboard. Never upgrade or add credits to get around exhaustion. [REST setup](https://developers.cloudflare.com/workers-ai/get-started/rest-api/), [pricing and UTC reset](https://developers.cloudflare.com/workers-ai/platform/pricing/), [model](https://developers.cloudflare.com/workers-ai/models/glm-4.7-flash/).
+Workers Free includes 10,000 neurons/day and further usage fails unless the account is upgraded. The app now reserves a conservative neuron estimate atomically before each request, using the model's published 5,500 input / 36,400 output neurons per million tokens, a serialized-input byte bound, and the maximum completion. The testing profile caps this app at 5,000 neurons/day and 150 requests/minute (half the published free allowances). Failed attempts stay counted; zero-valued legacy reservations conservatively consume the daily neuron budget. Other apps can still consume shared account capacity; monitor the dashboard. Never upgrade or add credits to get around exhaustion. [REST setup](https://developers.cloudflare.com/workers-ai/get-started/rest-api/), [pricing and UTC reset](https://developers.cloudflare.com/workers-ai/platform/pricing/), [model](https://developers.cloudflare.com/workers-ai/models/glm-4.7-flash/).
 
 ## 3. Gemini: optional local comparison
 
@@ -63,3 +63,9 @@ If the consent app is in testing, add your intended testers in Google's console.
 - Social featuring requires separate maintainer consent and manual admin ownership verification. Google sign-in or submitting a public link is not proof of repository ownership. Consent can be revoked; publishing remains manual.
 
 Software cannot verify all legal/account obligations or stop an owner from changing a provider's billing plan outside the app. These guards reduce operational risk; they do not certify universal policy compliance. Revoke a key if exposed, pause AI on uncertainty, preserve licenses/attribution, and respect takedown/access restrictions. Keep the deployment private until its audience, privacy notice, license handling, and moderation obligations are reviewed.
+
+## UI behavior at a limit
+
+The fresh-AI checkbox becomes unchecked and disabled on exhaustion, cooldown, missing eligibility, unknown retry, or stale/unreachable quota state. The page refreshes server state every 10 seconds while visible and on focus. The server independently enforces reservations for races and direct API requests. Deterministic scans, cached report links, mode switches, and downloads remain usable. Explicit `include_ai=false` requests call neither model provider and use a distinct report cache key. Gemini remains on its original conservative local pilot ceiling until actual project-specific free limits are supplied; Groq figures do not establish Gemini limits.
+
+Provider responses now record actual input/output/total token usage, HTTP status, completion time, and outcome separately from reservations in SQLite. Legacy usage is unknown rather than fabricated. Failed/unsupported attempts retain their original budget reservation; usage history is retained for 90 days. Groq uses low reasoning with a bounded completion, and Cloudflare disables unnecessary thinking for the short roast task. Unique source quotations may repair model line/indentation mistakes; final source anchors and original whitespace are verified and the correction is recorded. Ambiguous/invented evidence is rejected.

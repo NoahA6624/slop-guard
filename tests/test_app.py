@@ -32,6 +32,8 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("REVIEW_PROVIDER", "gemini")
     monkeypatch.setenv("AI_ENABLED", "false")
     monkeypatch.setenv("CLOUDFLARE_FREE_PLAN_CONFIRMED", "false")
+    monkeypatch.setenv("CLOUDFLARE_ROAST_RPM", "150")
+    monkeypatch.setenv("CLOUDFLARE_NEURONS_PER_DAY", "5000")
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "")
     monkeypatch.setenv("ADMIN_GOOGLE_SUBS", "admin")
     monkeypatch.setenv(
@@ -507,6 +509,46 @@ def test_secret_filter(monkeypatch):
     assert set(safe) == {"fine.py"} and skipped == ["secret.py"]
 
 
+def test_unique_quotation_can_repair_model_line_anchor():
+    entry = {
+        "path": "x.py",
+        "start": 1,
+        "end": 1,
+        "evidence": "assert True",
+        "title": "Test",
+        "roast": "Roast",
+        "consequence": "Consequence",
+        "fix": "Fix",
+        "check": "Check",
+        "confidence": "high",
+    }
+    valid = review.validate_review(
+        {"findings": [entry]}, {"x.py": "def test_x():\n    assert True\n"}
+    )
+    assert (
+        len(valid) == 1
+        and valid[0]["start"] == 2
+        and valid[0]["evidence"] == "    assert True"
+    )
+    assert "corrected" in valid[0]["evidence_alignment"]
+    corrected = review.validate_review(
+        {
+            "findings": [
+                dict(entry, start=52, end=95, evidence="def test_x():\n    assert True")
+            ]
+        },
+        {"x.py": "def test_x():\n    assert True\n"},
+    )
+    assert (
+        len(corrected) == 1 and corrected[0]["start"] == 1 and corrected[0]["end"] == 2
+    )
+    assert corrected[0]["model_claimed_location"] == {"start": 52, "end": 95}
+    assert not review.validate_review(
+        {"findings": [entry]},
+        {"x.py": "def test_x():\n    assert True\n    assert True\n"},
+    )
+
+
 def test_social_consent_verification_and_revocation(client, mocked_scan):
     report = client.post("/api/scans", json={"repo": "owner/repo"}).json()
     identify(client)
@@ -552,7 +594,7 @@ def test_groq_strict_request_and_token_budget(monkeypatch):
         ).isoformat(),
         "GROQ_RPM": "30",
         "GROQ_RPD": "1000",
-        "GROQ_TPM": "8000",
+        "GROQ_TPM": "4000",
         "GROQ_TPD": "200000",
     }.items():
         monkeypatch.setenv(k, v)
@@ -578,6 +620,8 @@ def test_groq_strict_request_and_token_budget(monkeypatch):
     monkeypatch.setattr(review.httpx, "AsyncClient", lambda **kwargs: Provider())
     result = asyncio.run(review.review({"a.py": CLEAN}))
     assert result["status"] == "reviewed" and result["provider"] == "groq"
+    assert review.groq_reservation(captured[0]) <= 4000
+    assert captured[0]["reasoning_effort"] == "low"
     schema = captured[0]["response_format"]["json_schema"]
     assert schema["strict"] and schema["schema"]["additionalProperties"] is False
     assert (
@@ -651,6 +695,106 @@ def test_disabled_provider_consumes_no_allowance(monkeypatch):
     monkeypatch.setattr(review.httpx, "AsyncClient", forbidden)
     assert asyncio.run(review.review({"a.py": CLEAN}))["status"] == "unavailable"
     assert not db.rows("SELECT * FROM quota")
+
+
+def enable_cloudflare(monkeypatch, neurons=5000, rpm=150):
+    for key, value in {
+        "AI_ENABLED": "true",
+        "CLOUDFLARE_FREE_PLAN_CONFIRMED": "true",
+        "CLOUDFLARE_BILLING_DISABLED": "true",
+        "CLOUDFLARE_VERIFIED_UNTIL": (
+            datetime.now(timezone.utc) + timedelta(days=1)
+        ).isoformat(),
+        "CLOUDFLARE_ACCOUNT_ID": "fixture",
+        "CLOUDFLARE_API_TOKEN": "fixture",
+        "CLOUDFLARE_ROAST_RPM": str(rpm),
+        "CLOUDFLARE_NEURONS_PER_DAY": str(neurons),
+        "CLOUDFLARE_ROAST_RPD": "0",
+    }.items():
+        monkeypatch.setenv(key, value)
+
+
+def test_cloudflare_neuron_budget_restart_and_reset(monkeypatch):
+    from slopguard import roast
+
+    enable_cloudflare(monkeypatch)
+    now = datetime(2026, 11, 20, 12, tzinfo=timezone.utc).timestamp()
+    assert roast.reserve(3000, now)
+    db.migrate()
+    assert roast.reserve(2000, now + 61)
+    assert not roast.reserve(1, now + 62)
+    assert roast.reserve(5000, now + 86400)
+
+
+def test_cloudflare_atomic_neurons_and_minute_cap(monkeypatch):
+    from slopguard import roast
+
+    enable_cloudflare(monkeypatch)
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        results = list(pool.map(lambda _: roast.reserve(3000), range(5)))
+    assert sum(results) == 1
+    monkeypatch.setenv("CLOUDFLARE_ROAST_RPM", "1")
+    assert not roast.reserve(1)
+
+
+def test_explicit_scan_opt_out_makes_no_model_requests(
+    client, mocked_scan, monkeypatch
+):
+    from slopguard import roast
+
+    async def forbidden(*args, **kwargs):
+        raise AssertionError("Opt-out must not call either provider")
+
+    monkeypatch.setattr(review, "review", forbidden)
+    monkeypatch.setattr(roast, "refine", forbidden)
+    result = client.post("/api/scans", json={"repo": "owner/repo", "include_ai": False})
+    assert result.status_code == 200 and result.json()["score"] is not None
+    assert not db.rows("SELECT * FROM quota")
+
+
+def test_daily_token_exhaustion_visible_without_pending_request(monkeypatch):
+    enable(monkeypatch)
+    monkeypatch.setenv("GEMINI_TPD", "100")
+    assert review.reserve(100)
+    with db.connect() as conn:
+        assert review.quota_status(conn, time.time())["state"] == "exhausted"
+
+
+def test_actual_usage_separate_from_reserved_capacity(monkeypatch):
+    from slopguard import usage
+    import httpx
+
+    enable(monkeypatch)
+    request_id = review.reserve(900)
+    usage.record(
+        request_id,
+        "succeeded",
+        httpx.Response(
+            200,
+            json={
+                "usage": {
+                    "prompt_tokens": 100,
+                    "completion_tokens": 50,
+                    "total_tokens": 150,
+                }
+            },
+        ),
+    )
+    row = db.rows("SELECT * FROM quota WHERE id=?", (request_id,))[0]
+    assert (
+        row["tokens"],
+        row["input_tokens"],
+        row["output_tokens"],
+        row["total_tokens"],
+    ) == (900, 100, 50, 150)
+    assert row["status"] == "succeeded" and row["http_status"] == 200
+    usage.record(request_id, "failed")
+    row = db.rows("SELECT * FROM quota WHERE id=?", (request_id,))[0]
+    assert (
+        row["tokens"] == 900
+        and row["total_tokens"] is None
+        and row["status"] == "failed"
+    )
 
 
 def test_retry_details_and_dates():

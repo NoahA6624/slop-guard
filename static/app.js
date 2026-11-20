@@ -75,6 +75,11 @@ function home() {
     `<div class="page"><section class="hero"><span class="eyebrow">A little less slop. A lot better code.</span><h1>My AI slop grades<span>your AI slop.</span></h1><p class="intro">An honest second look at your GitHub repo.<br>Find what’s fragile, see the evidence, and leave with a fix.</p>${modeControl()}</section><form class="scan-box" id="scan-form"><label for="repo">Your public GitHub repository</label><div class="input-group"><div class="repo-input"><span aria-hidden="true">⌘</span><input id="repo" name="repo" placeholder="github.com/you/your-project" required spellcheck="false" autocomplete="off" aria-describedby="repo-help"></div><button class="primary" id="grade">Grade my repo</button></div><div class="input-help" id="repo-help"><span>Public repos only. No sign-in. No code is ever run.</span><button type="button" class="text-button" id="self-scan">Grade Slop Guard itself</button></div><div id="scan-status" role="status" aria-live="polite"></div></form><section class="how" aria-label="How it works"><div><div class="step"><span class="step-num">1</span><h3>Drop in your repo</h3></div><p>We inspect a bounded snapshot.<br>Your code stays your code.</p></div><div><div class="step"><span class="step-num">2</span><h3>Get an honest read</h3></div><p>Two independent scores.<br>Every finding comes with receipts.</p></div><div><div class="step"><span class="step-num">3</span><h3>Make it better</h3></div><p>Take a focused Markdown fix plan<br>back to your coding agent.</p></div></section><section class="example-panel"><div class="example-intro"><span class="tiny-label">The kind of thing we catch · example</span><h2>Looks like a test.<br>Doesn’t test a thing.</h2><p>A green check is only useful when it can turn red.</p><a href="/methodology" class="small muted">See how grading works</a></div><div class="example-code"><div class="code-header"><span>tests/test_checkout.py</span><span>Illustrative fixture</span></div><pre>1  def test_checkout_succeeds():
 2      assert True</pre><div class="example-verdict">${mode === "satirical" ? "“This test has never doubted you.”" : "This test passes even if the feature is removed."}</div></div></section><p class="disclaimer">We grade observable code quality. We don’t guess who—or what—wrote it.</p></div>`;
   $("#scan-form").onsubmit = submitScan;
+  $("#repo-help").insertAdjacentHTML(
+    "afterend",
+    `<div class="ai-option"><label for="include-ai"><input id="include-ai" type="checkbox" ${config.quota?.state === "available" ? "checked" : ""} aria-describedby="ai-availability">Include a fresh AI review</label><span id="ai-availability" role="status" aria-live="polite"></span></div>`,
+  );
+  updateAiControls();
   $("#self-scan").onclick = () => {
     $("#repo").value = "NoahA6624/slop-guard";
     $("#scan-form").requestSubmit();
@@ -89,7 +94,12 @@ async function submitScan(e) {
   try {
     const result = await api("/scans", {
       method: "POST",
-      body: JSON.stringify({ repo: $("#repo").value.trim() }),
+      body: JSON.stringify({
+        repo: $("#repo").value.trim(),
+        include_ai: Boolean(
+          $("#include-ai")?.checked && !$("#include-ai").disabled,
+        ),
+      }),
     });
     navigate(`/reports/${result.id}?mode=${mode}`, false);
     report = result;
@@ -179,6 +189,18 @@ async function refreshConfig() {
   config.receivedAt = Date.now() / 1000;
   $("#signin").textContent = config.user ? config.user.name : "Sign in";
   if ($("#quota-line")) $("#quota-line").textContent = quotaText();
+  updateAiControls();
+}
+function updateAiControls() {
+  const control = $("#include-ai");
+  if (!control) return;
+  const fresh = config.quota && Date.now() / 1000 - config.receivedAt < 30;
+  const available = fresh && config.quota.state === "available";
+  control.disabled = !available;
+  if (!available) control.checked = false;
+  $("#ai-availability").textContent = fresh
+    ? quotaText() + (available ? "" : " · Deterministic scanning is available.")
+    : "Checking AI availability · deterministic scanning is available.";
 }
 async function signIn() {
   if (config.user) {
@@ -599,7 +621,25 @@ const socialAdminObserver = new MutationObserver(() => {
 socialAdminObserver.observe($("#view"), { childList: true, subtree: true });
 setInterval(() => {
   if ($("#quota-line")) $("#quota-line").textContent = quotaText();
+  updateAiControls();
 }, 1000);
+setInterval(() => {
+  if (!document.hidden)
+    refreshConfig().catch(() => {
+      config.quota = {
+        state: "unknown",
+        message: "Cannot confirm AI availability",
+      };
+      config.receivedAt = Date.now() / 1000;
+      updateAiControls();
+    });
+}, 10000);
+window.addEventListener("focus", () =>
+  refreshConfig().catch(() => {
+    config.receivedAt = 0;
+    updateAiControls();
+  }),
+);
 (async () => {
   try {
     await refreshConfig();

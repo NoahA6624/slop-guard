@@ -1101,3 +1101,29 @@ form.field-form textarea {
   border-bottom: 1px solid #e4c98d;
   font-size: 13px;
 }
+.ai-option {
+  margin-top: 18px;
+  border-top: 1px solid #e5e9df;
+  padding-top: 13px;
+}
+.scan-box .ai-option label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin: 0;
+}
+.ai-option input {
+  accent-color: #286345;
+  width: 16px;
+  height: 16px;
+}
+.ai-option span {
+  display: block;
+  margin: 5px 0 0 24px;
+  font-size: 12px;
+  color: #747e6b;
+}
+.ai-option:has(input:disabled) label {
+  color: #7c8277;
+}
