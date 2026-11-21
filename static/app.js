@@ -64,9 +64,12 @@ function modal(title, html) {
   $("#modal-label").textContent = title;
   $("#modal-body").innerHTML = html;
   if (!dialog.open) dialog.showModal();
-  const first = $("#modal-body").querySelector(
-    "[autofocus], input:not([type=hidden]), textarea, select, button, a[href]",
-  );
+  const body = $("#modal-body");
+  const first =
+    body.querySelector("[autofocus]") ||
+    body.querySelector(
+      "input:not([type=hidden]), textarea, select, button, a[href]",
+    );
   (first || $("#close-modal")).focus();
 }
 $("#modal").addEventListener("close", () => {
@@ -260,7 +263,7 @@ function quotaText() {
 function renderReport(focusHash = false) {
   const r = report;
   $("#view").innerHTML =
-    `<div class="page"><div class="page-head"><div><h1>${esc(r.repo)}</h1><div class="report-meta">Commit <code>${esc(r.sha.slice(0, 8))}</code> · ${new Date(r.created * 1000).toLocaleDateString()}</div></div>${modeControl()}</div><div class="scores"><section class="score-block"><h2>Deterministic Slop Score</h2><div class="score-number">${r.score ?? "—"}${r.score == null ? "" : " <small>/ 100</small>"}</div>${r.score == null ? '<div class="quota">Insufficient coverage</div>' : ""}</section><section class="score-block"><h2>Probabilistic AI Slop</h2><div class="quota" id="quota-line">${esc(quotaText())}</div><div class="score-number">${r.ai.score ?? "—"}${r.ai.score == null ? "" : " <small>/ 100</small>"}</div><div class="quota">${r.ai.score == null ? "Not reviewed" : "Model judgment"}</div></section></div><p class="score-note">Higher means more slop. ${r.coverage.eligible == null ? `${r.coverage.inspected} ${r.coverage.inspected === 1 ? "file" : "files"} inspected; eligible total unknown` : `${r.coverage.inspected} of ${r.coverage.eligible} eligible files inspected`}${r.coverage.partial ? " (partial coverage)" : ""}${r.languages.length ? " · " + esc(r.languages.join(", ")) : ""}.</p><div class="report-actions"><button class="primary" id="fix-plan" ${r.findings.length ? "" : 'disabled title="No actionable findings to export"'}>Fix My AI Slop</button><button class="secondary" id="roast">Roast My Repo</button><button class="secondary" id="share-report">Copy report link</button><a class="text-button small" href="/">Grade another repo</a></div><div class="section-title"><h2>${mode === "satirical" ? "The code can take it." : "What needs your attention"}</h2><span class="small muted">${r.findings.length} ${r.findings.length === 1 ? "finding" : "findings"}</span></div>${r.findings.length ? r.findings.map((f, i) => `${i === 3 ? `<details class="more-findings"><summary>Show ${r.findings.length - 3} more ${r.findings.length - 3 === 1 ? "finding" : "findings"}</summary>` : ""}${findingHtml(f)}${i === r.findings.length - 1 && i >= 3 ? "</details>" : ""}`).join("") : '<div class="empty"><h2>No supported findings.</h2><p>That doesn’t prove the code is defect-free. See what was inspected below.</p></div>'}<details class="details"><summary>Coverage, metrics, and skipped checks</summary><div class="metrics-grid"><div><strong>${r.metrics.lines}</strong><span>Lines inspected</span></div><div><strong>${r.metrics.average_file_length}</strong><span>Average lines per file</span></div><div><strong>${Math.round(r.metrics.comment_density * 100)}%</strong><span>Comment line density, headers excluded</span></div></div><p>${formatBytes(r.coverage.bytes)} inspected · rubric ${esc(r.rubric)}${r.cache_hit ? " · cached result" : ""}. File lengths: ${esc(r.metrics.file_lengths.join(", ") || "none")} lines.</p><ul>${[
+    `<div class="page"><div class="page-head"><div><h1>${esc(r.repo)}</h1><div class="report-meta">Commit <code>${esc(r.sha.slice(0, 8))}</code> · ${new Date(r.created * 1000).toLocaleDateString()}</div></div>${modeControl()}</div><div class="scores"><section class="score-block"><h2>Deterministic Slop Score</h2><div class="score-number">${r.score ?? "—"}${r.score == null ? "" : " <small>/ 100</small>"}</div>${r.score == null ? '<div class="quota">Insufficient coverage</div>' : ""}</section><section class="score-block"><h2>Probabilistic AI Slop</h2><div class="quota" id="quota-line">${esc(quotaText())}</div><div class="score-number">${r.ai.score ?? "—"}${r.ai.score == null ? "" : " <small>/ 100</small>"}</div><div class="quota">${r.ai.score == null ? "Not reviewed" : "Model judgment"}</div></section></div><p class="score-note">Higher means more slop. ${r.coverage.eligible == null ? `${r.coverage.inspected} ${r.coverage.inspected === 1 ? "file" : "files"} inspected; eligible total unknown` : `${r.coverage.inspected} of ${r.coverage.eligible} eligible files inspected`}${r.coverage.partial ? " (partial coverage)" : ""}${r.languages.length ? " · " + esc(r.languages.join(", ")) : ""}.</p><div class="report-actions"><button class="primary" id="fix-plan" ${r.findings.length ? "" : 'disabled aria-describedby="fix-plan-note"'}>Fix My AI Slop</button><button class="secondary" id="roast">Roast My Repo</button><button class="secondary" id="share-report">Copy report link</button><a class="text-button small" href="/">Grade another repo</a>${r.findings.length ? "" : '<p class="action-note" id="fix-plan-note">Nothing to export: this scan has no supported findings.</p>'}</div><div class="section-title"><h2>${mode === "satirical" ? "The code can take it." : "What needs your attention"}</h2><span class="small muted">${r.findings.length} ${r.findings.length === 1 ? "finding" : "findings"}</span></div>${r.findings.length ? r.findings.map((f, i) => `${i === 3 ? `<details class="more-findings"><summary>Show ${r.findings.length - 3} more ${r.findings.length - 3 === 1 ? "finding" : "findings"}</summary>` : ""}${findingHtml(f)}${i === r.findings.length - 1 && i >= 3 ? "</details>" : ""}`).join("") : '<div class="empty"><h2>No supported findings.</h2><p>That doesn’t prove the code is defect-free. See what was inspected below.</p></div>'}<details class="details"><summary>Coverage, metrics, and skipped checks</summary><div class="metrics-grid"><div><strong>${r.metrics.lines}</strong><span>Lines inspected</span></div><div><strong>${r.metrics.average_file_length}</strong><span>Average lines per file</span></div><div><strong>${Math.round(r.metrics.comment_density * 100)}%</strong><span>Comment line density, headers excluded</span></div></div><p>${formatBytes(r.coverage.bytes)} inspected · rubric ${esc(r.rubric)}${r.cache_hit ? " · cached result" : ""}. File lengths: ${esc(r.metrics.file_lengths.join(", ") || "none")} lines.</p><ul>${[
       r.ai.uncertainty,
       ...r.coverage.reasons,
       ...r.checks,
@@ -272,7 +275,7 @@ function renderReport(focusHash = false) {
       )}</ul><p><a href="/methodology">How grading works</a></p></details></div>`;
   $("#fix-plan").onclick = openPlan;
   $("#roast").onclick = () => changeMode("satirical");
-  $("#share-report").onclick = () => copy(location.href);
+  $("#share-report").onclick = () => copy(location.href, "Report link");
   if (focusHash) revealFinding();
 }
 function formatBytes(n) {
@@ -314,26 +317,61 @@ function findingHtml(f) {
   return `<article class="finding" id="finding-${esc(f.id)}" tabindex="-1"><div class="finding-meta"><span class="badge${model ? " model" : ""}">${esc(model ? "Model review" : f.rule)}</span><span>${esc(f.confidence)} confidence${points}</span></div><h3>${esc(mode === "satirical" ? f.roast : f.title)}</h3><p>${esc(f.consequence)}</p>${sourceHtml(f)}<dl class="finding-fix"><dt>Fix</dt><dd>${esc(f.fix)}</dd><dt>Verify</dt><dd>${esc(f.check)}</dd></dl><div class="finding-actions"><a href="${esc(f.url)}" target="_blank" rel="noopener">View source at commit</a><button class="text-button" data-discuss="${esc(f.id)}">Discuss this finding</button><details class="more-actions"><summary>More</summary><div class="more-actions-list"><button class="text-button" data-share="${esc(f.id)}">Share finding</button><button class="text-button" data-discuss="${esc(f.id)}">Bad call?</button><a href="/library">Find a useful tool</a><button class="text-button" data-social="${esc(f.id)}">Offer for a social roast</button></div></details></div></article>`;
 }
 async function openPlan() {
+  const r = report;
+  // Mirrors the server: a model-review plan when model findings exist.
+  const kind = r.findings.some((f) => f.source !== "deterministic")
+    ? "Cached model review"
+    : "Deterministic checklist";
   try {
-    plan = await api(`/reports/${report.id}/plan`);
+    plan = await api(`/reports/${r.id}/plan`);
+  } catch (e) {
     modal(
       "Fix My AI Slop",
-      `<h2 class="dialog-title">A plan you can actually act on.</h2><p class="small muted">${report.findings.some((f) => f.source !== "deterministic") ? "Cached model review" : "Deterministic checklist"} · No new AI call</p><pre class="plan-text">${esc(plan)}</pre><div class="dialog-actions"><button class="primary" id="copy-plan">Copy Markdown</button><a class="secondary" href="/api/reports/${report.id}/plan?download=true" download="SLOP_FIX_PLAN.md">Download SLOP_FIX_PLAN.md</a></div>`,
+      `<p class="notice-error" role="alert">${esc(e.message)}</p><div class="dialog-actions"><button class="secondary" id="retry-plan" autofocus>Try again</button></div>`,
     );
-    $("#copy-plan").onclick = () => copy(plan);
-  } catch (e) {
-    notify(e.message);
+    $("#retry-plan").onclick = openPlan;
+    return;
   }
+  const items = (plan.match(/^## /gm) || []).length;
+  modal(
+    "Fix My AI Slop",
+    `<p class="plan-meta"><strong>${kind}</strong> · ${esc(r.repo)} at <code>${esc(r.sha.slice(0, 8))}</code> · ${items} ${items === 1 ? "item" : "items"} · no new AI call</p><pre class="plan-text" id="plan-text" tabindex="0" role="region" aria-label="SLOP_FIX_PLAN.md preview">${esc(plan)}</pre><div class="dialog-actions"><button class="primary" id="copy-plan" autofocus>Copy Markdown</button><a class="secondary" href="/api/reports/${esc(r.id)}/plan?download=true" download="SLOP_FIX_PLAN.md">Download SLOP_FIX_PLAN.md</a></div><p class="copy-status" id="copy-status" role="status"></p>`,
+  );
+  $("#copy-plan").onclick = async () => {
+    const status = $("#copy-status");
+    status.textContent = "";
+    try {
+      await navigator.clipboard.writeText(plan);
+      status.textContent = "Copied. Paste it into your coding agent.";
+    } catch {
+      selectContents($("#plan-text"));
+      status.textContent = isMac()
+        ? "Couldn’t copy automatically. The plan is selected; press ⌘C."
+        : "Couldn’t copy automatically. The plan is selected; press Ctrl+C.";
+    }
+  };
 }
-async function copy(text) {
+function isMac() {
+  return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+}
+function selectContents(el) {
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const selection = getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+async function copy(text, label = "Link") {
   try {
     await navigator.clipboard.writeText(text);
-    notify("Copied to clipboard.");
+    notify(`${label} copied.`);
   } catch {
     modal(
-      "Copy text",
-      `<p>Select and copy the text below.</p><textarea class="plan-text" readonly>${esc(text)}</textarea>`,
+      "Copy link",
+      `<p>Couldn’t copy automatically. The link is selected; press ${isMac() ? "⌘C" : "Ctrl+C"}.</p><input class="copy-field" id="copy-field" readonly aria-label="${esc(label)}" value="${esc(text)}">`,
     );
+    $("#copy-field").select();
   }
 }
 async function refreshConfig() {
@@ -640,7 +678,7 @@ document.addEventListener("click", async (e) => {
   if (el.dataset.share) {
     const url = new URL(location);
     url.hash = "finding-" + el.dataset.share;
-    copy(url.href);
+    copy(url.href, "Finding link");
   }
   if (el.dataset.discuss) contribute("topic", el.dataset.discuss);
   if (el.dataset.reply) contribute("reply", null, el.dataset.reply);
