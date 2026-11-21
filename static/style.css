@@ -727,12 +727,33 @@ footer a:hover {
 /* ---------- Tone switch ---------- */
 
 .mode {
-  display: inline-flex;
+  --mode-ease: cubic-bezier(0.3, 1.35, 0.5, 1);
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--sunken);
+}
+/* The sliding thumb sits behind the selected option. */
+.mode::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 3px);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--accent);
+  transition: transform 260ms var(--mode-ease);
+}
+.mode[data-current="satirical"]::before {
+  transform: translateX(calc(100% + 2px)) rotate(-1.5deg);
 }
 .mode button {
   min-height: var(--target);
@@ -744,12 +765,14 @@ footer a:hover {
   color: var(--ink-2);
   font-size: var(--text-sm);
   font-weight: 600;
+  transition: color 200ms ease;
+}
+.mode button:hover {
+  color: var(--ink);
 }
 .mode button.selected,
 .mode button[aria-pressed="true"] {
-  background: var(--surface);
   color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
 }
 
 /* ---------- Home ---------- */

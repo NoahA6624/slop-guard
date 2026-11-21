@@ -81,9 +81,18 @@ $("#modal").addEventListener("click", (e) => {
   if (e.target === $("#modal")) $("#modal").close();
 });
 function modeControl() {
-  return `<div><div class="mode" role="group" aria-label="Report tone"><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div></div>`;
+  return `<div><div class="mode" role="group" aria-label="Report tone" data-current="${mode}"><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div></div>`;
+}
+function slideModeThumb(from, to) {
+  if (from === to) return;
+  document.querySelectorAll("#view .mode").forEach((el) => {
+    el.dataset.current = from;
+    el.getBoundingClientRect(); // commit the starting position
+    el.dataset.current = to;
+  });
 }
 function changeMode(next) {
+  const previous = mode;
   mode = next;
   localStorage.setItem("slop-mode", mode);
   const url = new URL(location);
@@ -103,6 +112,7 @@ function changeMode(next) {
     .forEach((d, i) => open[i] && (d.open = true));
   scrollTo(0, y);
   if (focused) $("#view " + focused)?.focus();
+  slideModeThumb(previous, next);
 }
 const SELF_REPO = "NoahA6624/slop-guard";
 const REPO_PATTERN = /^([A-Za-z0-9_.-]{1,100})\/([A-Za-z0-9_.-]{1,100})$/;

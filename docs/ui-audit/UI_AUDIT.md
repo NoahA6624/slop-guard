@@ -138,3 +138,15 @@ Branch `feature/ui-06-fix-plan-export` from `dev` at `f2e6e7d`. Same fixture env
 - **Requests:** with the fixture quota set to exhausted, opening the plan, two tone switches, Share finding and Copy report link issued exactly one request (`GET /api/reports/local-fixture/plan`), with no scan or model calls.
 - **Phone layout:** at 320px the dialog fits (282px wide), the preview scrolls inside itself, and buttons are 44px or taller.
 - **Checks:** 45 pytest, `node --check` and Prettier passed. Screenshot: `after-ui-06/plan-dialog-390.jpg`.
+
+## Tone switch animation (2026-11-20)
+
+Branch `feature/tone-switch-animation` from `dev` at `48c8b6c`.
+
+- **The thumb:** the Serious/Satirical control has a sliding thumb (a `::before` on `.mode`) driven by `data-current`. Because a tone change re-renders the view, `slideModeThumb()` sets the new control to the previous side, commits that layout, then switches it, so the thumb visibly slides instead of jumping.
+- **Motion:** about 260ms with a slight spring overshoot. On Satirical the thumb settles with a 1.5° tilt.
+- **Measured in headless Chrome:** toward Satirical, 0 → 44 → 82 → 92 (overshoot) → 89px by about 280ms; back to Serious, 89 → 29 → 8 → −3 → 0.
+- **Reduced motion:** switches instantly (existing global rule).
+- **Forced colors:** the selected option keeps the system highlight. Screenshots were inspected.
+- **Unchanged:** focus, `aria-pressed`, the URL, and zero network requests on tone change.
+- **Checks:** 45 pytest, `node --check` and Prettier passed. The in-app browser pane was hidden, which freezes its animation clock, so timing was measured with Playwright in headless Chrome against the loopback fixture only.
