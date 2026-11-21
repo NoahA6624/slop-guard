@@ -26,6 +26,44 @@ Sprint: https://github.com/NoahA6624/slop-guard/issues/2. Status as of 21 Novemb
 - **Test suite:** 49 pytest tests, plus `node --check` and Prettier.
 - **UI-09 audit:** 115 checks on a credential-free local fixture: layout, zoom, states, quota, keyboard, ARIA tree, motion, forced colors and the full journey. Details are in `docs/DESIGN_VERIFICATION.md`, and the script and screenshots are in `docs/ui-audit/ui-09/`.
 
+## Components and states
+
+Reuse these instead of adding new ones. The geometry is in `static/style.css`, the colors are in `static/theme.css`, and the rules are in `docs/DESIGN_PRINCIPLES.md`.
+
+| Component             | Classes / helpers                                                                              | States it must keep                                                                                                                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Actions               | `.primary`, `.secondary`, `.text-button`, `.icon-button`                                       | One primary action per view. Hover, visible focus, disabled with a visible reason (`.action-note`), at least 44px tall.                                                                                           |
+| Fields and forms      | `.field-form`, `.field-error`, `.form-status`, `submitForm()`, `fieldError()`                  | Visible label, hint linked with `aria-describedby`, error linked with `aria-invalid` and the first invalid field focused, `aria-busy` with one request at a time, input kept on failure, Try again.               |
+| Notices               | `.notice`, `.notice-warn`, `.notice-error`, `.progress`, `.page-loading`                       | Error notices use `role="alert"`. Progress and loading use a status region. Never show a per-second countdown in a live region.                                                                                   |
+| Empty and unavailable | `.empty`                                                                                       | Says what's missing and the next step. No sample or fabricated activity. Route failures show "That didn't load." with a way back.                                                                                 |
+| Scores                | `.scores`, `.score-block`, `.quota`, `.score-note`                                             | Two independent boxes. The quota line stays under Probabilistic AI Slop. Statuses: "Insufficient coverage", "Not reviewed", "Model judgment". One line states that higher means more slop and what was inspected. |
+| Findings              | `.finding`, `.finding-meta`, `.badge`, `.source`, `.evidence`, `.finding-fix`, `.more-actions` | Stable `#finding-…` id, deep link opens and focuses the finding, line numbers only for exact ranges, code scrolls inside its own block, tone switch keeps focus and open disclosures.                             |
+| Tone switch           | `.mode`, `.mode-thumb`, `changeMode()`                                                         | `aria-pressed`, no network request, no animation under reduced motion, thumb hidden under forced colors.                                                                                                          |
+| Dialog                | `#modal`, `modal()`, `.dialog-actions`                                                         | Named by `#modal-label`, focus starts on the first useful control, Escape closes it and focus returns to the opener.                                                                                              |
+| Contributions         | `.contribution`, `.contribution-meta`, `.votes`, `.tabs`, `.attached`                          | Votes show popularity, not quality. `aria-pressed` and focus are kept after voting or sorting. Attached evidence reuses `.source`. Untrusted text always goes through `esc()`.                                    |
+| Shell                 | `header`, `.site-nav`, `.menu-toggle`, `.skip`                                                 | Menu disclosure under 900px (`aria-expanded`), `aria-current`, a title for each route, focus on the `h1` after navigation.                                                                                        |
+
+## Final screenshots
+
+`docs/ui-audit/ui-09/` holds the final set, taken from the local fixture on 21 November 2026:
+
+- `home-`, `reports-` and `community-` screenshots at 390, 768 and 1440px;
+- `dialog-` screenshots at 390, 768 and 1440px;
+- the long-line and missing-report states;
+- forced colors;
+- the forum topic with attached evidence.
+
+Earlier baselines are in `docs/ui-audit/` for comparison.
+
+## Follow-ups
+
+These don't block the sprint. Each has its own issue:
+
+- #21: real screen readers.
+- #22: Safari, Firefox, real zoom, touch devices and Windows High Contrast.
+- #23: real Google sign-in and a live scan.
+- #24: server-side forum reply counts.
+
 ## Remaining limitations
 
 - No real screen reader, Safari or Firefox, real browser zoom, or touch device testing.
