@@ -303,7 +303,7 @@ function sourceHtml(f) {
         `<span class="src-line">${numbered ? `<span class="src-num" aria-hidden="true">${f.start + i}</span>` : ""}<code>${esc(line) || " "}</code></span>`,
     )
     .join("");
-  return `<figure class="source"><figcaption><span class="finding-path">${esc(f.path)}</span><span>lines ${f.start}${f.end !== f.start ? "–" + f.end : ""}</span></figcaption><pre class="evidence${numbered ? " numbered" : ""}" tabindex="0" aria-label="Evidence from ${esc(f.path)}">${rows}</pre></figure>`;
+  return `<figure class="source"><figcaption><span class="finding-path">${esc(f.path)}</span><span>lines ${f.start}${f.end !== f.start ? "–" + f.end : ""}</span></figcaption><pre class="evidence${numbered ? " numbered" : ""}" tabindex="0" role="region" aria-label="Evidence from ${esc(f.path)}">${rows}</pre></figure>`;
 }
 function findingHtml(f) {
   const model = f.source !== "deterministic";
