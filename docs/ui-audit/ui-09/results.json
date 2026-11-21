@@ -1,0 +1,692 @@
+[
+  {
+    "area": "layout",
+    "name": "/ @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/reports/local-fixture @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/community @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/library @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/forum @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/portfolio @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/methodology @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/admin @320",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/ @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/reports/local-fixture @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/community @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/library @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/forum @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/portfolio @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/methodology @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/admin @390",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "plan dialog @390",
+    "ok": true,
+    "detail": "{\"sw\":350,\"cw\":350,\"doc\":0}"
+  },
+  {
+    "area": "layout",
+    "name": "/ @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/reports/local-fixture @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/community @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/library @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/forum @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/portfolio @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/methodology @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/admin @768",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "plan dialog @768",
+    "ok": true,
+    "detail": "{\"sw\":728,\"cw\":728,\"doc\":0}"
+  },
+  {
+    "area": "layout",
+    "name": "/ @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/reports/local-fixture @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/community @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/library @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/forum @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/portfolio @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/methodology @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "/admin @1440",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "plan dialog @1440",
+    "ok": true,
+    "detail": "{\"sw\":758,\"cw\":758,\"doc\":0}"
+  },
+  {
+    "area": "zoom",
+    "name": "/ 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/reports/local-fixture 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/community 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/library 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/forum 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/portfolio 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/methodology 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/admin 200% zoom (1440×900)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/ 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/reports/local-fixture 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/community 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/library 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/forum 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/portfolio 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/methodology 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "zoom",
+    "name": "/admin 400% zoom (1280×1024)",
+    "ok": true,
+    "detail": "overflow 0"
+  },
+  {
+    "area": "states",
+    "name": "long evidence line scrolls inside code only",
+    "ok": true,
+    "detail": "{\"doc\":0,\"pre\":true}"
+  },
+  {
+    "area": "layout",
+    "name": "state longline no overflow @390",
+    "ok": true,
+    "detail": "doc 0"
+  },
+  {
+    "area": "states",
+    "name": "empty findings honest + export disabled",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "state empty no overflow @390",
+    "ok": true,
+    "detail": "doc 0"
+  },
+  {
+    "area": "states",
+    "name": "partial coverage labelled",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "state partial no overflow @390",
+    "ok": true,
+    "detail": "doc 0"
+  },
+  {
+    "area": "states",
+    "name": "insufficient coverage shows — and label",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "state insufficient no overflow @390",
+    "ok": true,
+    "detail": "doc 0"
+  },
+  {
+    "area": "states",
+    "name": "unknown eligible total",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "state unknowntotal no overflow @390",
+    "ok": true,
+    "detail": "doc 0"
+  },
+  {
+    "area": "states",
+    "name": "model-reviewed score + label, independent of deterministic",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "layout",
+    "name": "state reviewed no overflow @390",
+    "ok": true,
+    "detail": "doc 0"
+  },
+  {
+    "area": "states",
+    "name": "not reviewed label",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "states",
+    "name": "missing report error page",
+    "ok": true,
+    "detail": "That didn’t load.\n\nReport not found. Run a new scan to create one.\n\nBack to the grader"
+  },
+  {
+    "area": "states",
+    "name": "network failure readable",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "states",
+    "name": "report loading state visible",
+    "ok": true,
+    "detail": "{\"text\":\"Loading…\",\"busy\":\"true\"}"
+  },
+  {
+    "area": "states",
+    "name": "community unavailable state",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "quota",
+    "name": "home available",
+    "ok": true,
+    "detail": "{\"disabled\":false,\"checked\":true,\"text\":\"5 AI reviews left today\",\"grade\":false}"
+  },
+  {
+    "area": "quota",
+    "name": "report available: quota under Probabilistic AI Slop",
+    "ok": true,
+    "detail": "5 AI reviews left today"
+  },
+  {
+    "area": "quota",
+    "name": "home cooldown",
+    "ok": true,
+    "detail": "{\"disabled\":true,\"checked\":false,\"text\":\"Next AI review in 00:01:00 · Deterministic scanning is available.\",\"grade\":false}"
+  },
+  {
+    "area": "quota",
+    "name": "report cooldown: quota under Probabilistic AI Slop",
+    "ok": true,
+    "detail": "Next AI review in 00:01:00"
+  },
+  {
+    "area": "quota",
+    "name": "home exhausted",
+    "ok": true,
+    "detail": "{\"disabled\":true,\"checked\":false,\"text\":\"AI reviews reset in 01:00:00 · Deterministic scanning is available.\",\"grade\":false}"
+  },
+  {
+    "area": "quota",
+    "name": "report exhausted: quota under Probabilistic AI Slop",
+    "ok": true,
+    "detail": "AI reviews reset in 01:00:00"
+  },
+  {
+    "area": "quota",
+    "name": "home unknown",
+    "ok": true,
+    "detail": "{\"disabled\":true,\"checked\":false,\"text\":\"Fixture AI availability: unknown · Deterministic scanning is available.\",\"grade\":false}"
+  },
+  {
+    "area": "quota",
+    "name": "report unknown: quota under Probabilistic AI Slop",
+    "ok": true,
+    "detail": "Fixture AI availability: unknown"
+  },
+  {
+    "area": "quota",
+    "name": "home disabled",
+    "ok": true,
+    "detail": "{\"disabled\":true,\"checked\":false,\"text\":\"Fixture AI availability: disabled · Deterministic scanning is available.\",\"grade\":false}"
+  },
+  {
+    "area": "quota",
+    "name": "report disabled: quota under Probabilistic AI Slop",
+    "ok": true,
+    "detail": "Fixture AI availability: disabled"
+  },
+  {
+    "area": "keyboard",
+    "name": "first Tab reaches skip link",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "skip link moves focus to main",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "menu opens with Enter",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "Tab from Menu enters nav",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "Escape closes menu, focus on Menu",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "route change focuses h1, sets aria-current and title",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "finding More disclosure opens with Enter",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "tone switch keeps focus, disclosure and aria-pressed",
+    "ok": true,
+    "detail": "{\"focus\":\"satirical\",\"open\":true,\"pressed\":\"true\"}"
+  },
+  {
+    "area": "keyboard",
+    "name": "plan dialog named, focus on Copy",
+    "ok": true,
+    "detail": "{\"focus\":\"copy-plan\",\"name\":\"Fix My AI Slop\"}"
+  },
+  {
+    "area": "keyboard",
+    "name": "Tab stays in modal dialog",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "Escape closes dialog, focus returns to Fix My AI Slop",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "keyboard",
+    "name": "form errors linked and first invalid field focused",
+    "ok": true,
+    "detail": "{\"focus\":\"entry-title\",\"invalid\":\"true\",\"described\":\"entry-title-hint entry-title-error\"}"
+  },
+  {
+    "area": "keyboard",
+    "name": "visible focus indicator",
+    "ok": true,
+    "detail": "solid 3px"
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/ landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/reports/local-fixture landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/community landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/library landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/forum landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/portfolio landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/methodology landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "a11y-tree",
+    "name": "/admin landmarks + heading order",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "motion",
+    "name": "reduced motion: tone switch runs no animation",
+    "ok": true,
+    "detail": "animations 0"
+  },
+  {
+    "area": "forced-colors",
+    "name": "form error text present and input bordered",
+    "ok": true,
+    "detail": "{\"errText\":\"This field is required.\",\"inputBorder\":\"solid\"}"
+  },
+  {
+    "area": "journey",
+    "name": "scan submits once and opens report (stubbed /api/scans)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "evidence visible with source link at commit",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "tone switch makes zero network requests",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "finding link copied",
+    "ok": true,
+    "detail": "http://127.0.0.1:8041/reports/local-fixture?mode=serious#finding-67d5f2a128a7"
+  },
+  {
+    "area": "journey",
+    "name": "deep link focuses exact finding",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "copy and download match cached plan",
+    "ok": true,
+    "detail": "2277 chars, SLOP_FIX_PLAN.md"
+  },
+  {
+    "area": "journey",
+    "name": "export used no scan/model call",
+    "ok": true,
+    "detail": "GET /api/reports/local-fixture/plan"
+  },
+  {
+    "area": "journey",
+    "name": "topic carries commit-pinned evidence",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "topic links back to exact finding",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "vote toggles aria-pressed and keeps focus",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "vote is reversible",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "scan network error keeps input and offers retry",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "journey",
+    "name": "invalid repo link rejected inline",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "area": "network",
+    "name": "no request left loopback",
+    "ok": true,
+    "detail": ""
+  }
+]
