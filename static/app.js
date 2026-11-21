@@ -87,7 +87,7 @@ function modeControl() {
 // pauses, then its right corner drops so it rests crooked. Back to
 // Serious the corner lifts first, then it slides home. Uses the Web
 // Animations API so it plays even though the view was just re-rendered.
-const TILT = 3;
+const TILT = 3; // keep in sync with .mode-thumb rotate() in style.css
 function slideModeThumb(from, to) {
   if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches)
     return;

@@ -748,6 +748,7 @@ footer a:hover {
   box-shadow: 0 0 0 1px var(--accent);
   transform-origin: top left;
 }
+/* Keep the 3deg tilt in sync with TILT in app.js. */
 .mode[data-current="satirical"] .mode-thumb {
   grid-column: 2;
   transform: rotate(3deg);
