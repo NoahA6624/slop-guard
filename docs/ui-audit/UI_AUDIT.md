@@ -112,3 +112,15 @@ Requested by the reviewer and the owner: simpler, less text, white background, n
 ## Accent update (2026-11-20)
 
 Requested: a slight, original accent so text is not plain black. Ink is now midnight plum (`#1c1633`) and the single accent is grader violet (`#5b2ee0`), used for links, focus, the current page, selected tone and sort controls, the "your AI slop." half of the slogan, the logo check, the linked-finding marker and text selection. Scores, warnings and errors stay neutral or keep their status colours. Contrast is in `docs/DESIGN_VERIFICATION.md`.
+
+## UI-05 results (2026-11-20)
+
+Branch `codex/ui-05-report-hierarchy` from `dev` at `b569d0a`. Same fixture environment.
+
+- **Finding layout:** each finding reads top to bottom: rule badge and confidence (with point contribution for deterministic rules), title, consequence, source excerpt, then Fix and Verify. Server order and the three-then-disclosure split are unchanged.
+- **Source excerpt:** a header shows the path and line range. Line numbers sit in a gutter that stays visible while long lines scroll sideways inside the excerpt. Numbers appear only when the excerpt is exactly the cited range, and they aren't selectable, so copying gives clean code.
+- **Actions:** View source at commit and Discuss this finding stay visible. Share finding, Bad call?, Find a useful tool and Offer for a social roast sit under a "More" disclosure. Every action is 44px tall.
+- **Deep links:** a finding link opens "Show N more findings" when needed, scrolls to the finding and focuses it, on load, on client navigation and on hash changes. Tone switches keep the hash, focus, and open finding and More disclosures.
+- **States:** checked separately: insufficient coverage, score 0 with no findings (Fix My AI Slop disabled), AI not reviewed, AI scored, AI 0, partial coverage, and an unknown eligible total ("N files inspected; eligible total unknown", which previously read "1 of unknown").
+- **Checks:** a 300-character line and a 160-character path caused no document overflow at 390px. No overflow or sub-44px controls on seven routes at 320, 390, 768 and 1440px with every disclosure open. 45 pytest, `node --check` and Prettier passed. Screenshots: `after-ui-05/`.
+- **Not done:** the optional "Jump to finding" index for long reports was left out to keep the report minimal; findings beyond three are one disclosure away.
