@@ -55,3 +55,16 @@ Verified 20 November 2026 on `dev` plus UI-06, in headless Google Chrome via Pla
 - `prefers-reduced-motion: reduce`: smooth scrolling resolves to `auto` and the progress spinner has no animation. Focus and borders are unchanged.
 
 Not covered: Windows High Contrast themes on real hardware.
+
+## UI-08: sign-in, contribution, moderation and consent
+
+Verified 20 November 2026 in the built-in Chromium pane against the local fixture (temporary DB, synthetic "Test user", no `GOOGLE_CLIENT_ID`, providers disabled). Anonymous, 401, 422, admin-queue and Google-script-failure states were simulated in the page by overriding `config.user`, stubbing `fetch` or stubbing the script loader. No request left loopback.
+
+- Contribution form: empty submit shows an error under each field, linked with `aria-describedby` and `aria-invalid`, and focuses the first one. A server 422 is mapped to its field. While sending, the form has `aria-busy`, the button is disabled and relabelled, and the status line says "Publishing…". Two rapid submits sent one request. After a 401 the form stays open, offers "Sign in again", and the text is restored when the form is reopened. Publish, reply, edit (own items only) and vote/unvote used the real fixture API.
+- Report: the 5-character minimum shows inline ("4 so far"); success closes the dialog and announces "Report sent for admin review."
+- Anonymous: the forum, community and library pages say "Anyone can read. Sign in to post, reply, vote or report.", and vote/report buttons reference that line. Each gated action opens sign-in with its own heading ("Sign in to vote."). Without a client ID, the setup note shows. When the Google script fails to load, the dialog stays open with an error and a focused Try again that retries.
+- Moderation: a real 403 shows "This page is for admins." Stubbed queue: reports are grouped per item with kind, count, reasons and link. Hide asks for confirmation (focus on Cancel); Cancel restores focus; Hide re-renders, announces the result and focuses the heading. Markup in titles was shown as text.
+- Social consent: both boxes start unchecked, credit defaults to Anonymous and the handle field is enabled only when chosen, and the three manual steps are listed. A proof link outside the repository is attached to the proof field. Success shows "pending manual verification. Nothing has been published." Revoking from the account dialog announces "Consent revoked." and the item reads "Revoked. It will not be drafted."
+- At 375px the consent dialog had no document or dialog overflow; error text computes to the danger color.
+
+Not covered: a real Google sign-in, screen readers, forced colors for the new form states, and whether a real mouse click moves focus back to the report button in Safari. These remain UI-09 work.

@@ -42,9 +42,10 @@ async function api(path, options = {}) {
     const error = new Error(
       typeof data.detail === "string"
         ? data.detail
-        : "Check the form fields and try again.",
+        : "Check the highlighted fields and try again.",
     );
     error.status = res.status;
+    if (Array.isArray(data.detail)) error.fields = fieldProblems(data.detail);
     throw error;
   }
   return res.headers.get("content-type")?.includes("application/json")
@@ -77,6 +78,123 @@ $("#modal").addEventListener("close", () => {
   modalOpener = null;
 });
 $("#close-modal").onclick = () => $("#modal").close();
+// Shared dialog forms: errors sit under their field, entered text is kept,
+// and a form sends at most one request at a time.
+const FIELD_INPUTS = {
+  title: "entry-title",
+  body: "entry-body",
+  url: "entry-url",
+  reason: "reason",
+  proof_url: "social-proof",
+  credit: "social-credit-name",
+  notes: "verify-notes",
+};
+function fieldProblems(detail) {
+  const fields = {};
+  for (const problem of detail) {
+    const name = problem.loc?.[problem.loc.length - 1];
+    if (!name || fields[name]) continue;
+    fields[name] =
+      problem.type === "string_too_short"
+        ? `Use at least ${problem.ctx?.min_length} characters.`
+        : problem.type === "string_too_long"
+          ? `Use at most ${problem.ctx?.max_length} characters.`
+          : problem.msg || "Check this field.";
+  }
+  return fields;
+}
+function fieldError(input, message) {
+  const id = input.id + "-error";
+  let note = document.getElementById(id);
+  if (!note && message) {
+    note = document.createElement("p");
+    note.id = id;
+    note.className = "field-error";
+    (input.closest(".checkbox-row") || input).after(note);
+  }
+  if (note) note.textContent = message;
+  const described = new Set(
+    (input.getAttribute("aria-describedby") || "").split(" ").filter(Boolean),
+  );
+  if (message) {
+    input.setAttribute("aria-invalid", "true");
+    described.add(id);
+  } else {
+    input.removeAttribute("aria-invalid");
+    described.delete(id);
+  }
+  if (described.size)
+    input.setAttribute("aria-describedby", [...described].join(" "));
+  else input.removeAttribute("aria-describedby");
+}
+function fieldMessage(input) {
+  const value = input.type === "checkbox" ? "" : input.value.trim();
+  if (input.type === "checkbox")
+    return input.required && !input.checked
+      ? "Check this box to continue."
+      : "";
+  if (input.required && !value) return "This field is required.";
+  if (value && input.minLength > 0 && input.value.length < input.minLength)
+    return `Use at least ${input.minLength} characters (${input.value.length} so far).`;
+  if (value && input.type === "url" && !/^https:\/\/\S+$/i.test(value))
+    return "Enter a full link that starts with https://.";
+  return "";
+}
+function validateForm(form) {
+  let first = null;
+  for (const input of form.querySelectorAll("input, textarea")) {
+    if (input.disabled || input.type === "radio") continue;
+    const message = fieldMessage(input);
+    fieldError(input, message);
+    if (message && !first) first = input;
+  }
+  first?.focus();
+  return !first;
+}
+async function submitForm(form, run, busyLabel = "Sending…", fieldFor = null) {
+  if (form.getAttribute("aria-busy") === "true") return;
+  const status = form.querySelector(".form-status");
+  const button = form.querySelector('button[type="submit"]');
+  status.classList.remove("is-error");
+  if (!validateForm(form)) {
+    status.textContent = "Check the highlighted fields.";
+    status.classList.add("is-error");
+    return;
+  }
+  const label = button.textContent;
+  form.setAttribute("aria-busy", "true");
+  button.disabled = true;
+  button.textContent = busyLabel;
+  status.textContent = busyLabel;
+  try {
+    await run();
+    if (form.isConnected) status.textContent = "";
+  } catch (error) {
+    let focused = false;
+    const fields = { ...error.fields };
+    const named = !error.fields && fieldFor?.(error);
+    if (named) fields[named] = error.message;
+    for (const [name, message] of Object.entries(fields)) {
+      const input = form.querySelector("#" + (FIELD_INPUTS[name] || name));
+      if (!input) continue;
+      fieldError(input, message);
+      if (!focused) input.focus();
+      focused = true;
+    }
+    status.classList.add("is-error");
+    if (named) status.textContent = "Check the highlighted field.";
+    else if (error.status === 401) {
+      status.innerHTML = `Your sign-in has ended. ${form.id === "contribution-form" ? "Your text is kept as a draft for when you reopen this form." : "Sign in, then try again."} <button type="button" class="text-button" data-signin="">Sign in again</button>`;
+    } else status.textContent = error.message;
+  } finally {
+    if (form.isConnected) {
+      form.setAttribute("aria-busy", "false");
+      button.disabled = false;
+      button.textContent = label;
+    }
+  }
+}
+const formStatus = '<p class="form-status" role="status"></p>';
 $("#modal").addEventListener("click", (e) => {
   if (e.target === $("#modal")) $("#modal").close();
 });
@@ -471,70 +589,116 @@ function updateAiControls() {
     aiAnnounced = state;
   }
 }
-async function signIn() {
-  if (config.user) {
-    modal(
-      "Your account",
-      `<h2 class="dialog-title">${esc(config.user.name)}</h2><p class="muted small">Your email address is never stored or shown.</p><button class="secondary" id="logout">Sign out</button>${config.admin ? '<p><a href="/admin">Open moderation</a></p>' : ""}`,
+const SIGNIN_REASONS = {
+  post: "Sign in to post.",
+  vote: "Sign in to vote.",
+  report: "Sign in to report a contribution.",
+  social: "Sign in to offer a finding for a social roast.",
+};
+function signInHint() {
+  return config.user
+    ? ""
+    : '<p class="small muted sign-in-hint" id="signin-hint">Anyone can read. <button class="text-button" data-signin="">Sign in</button> to post, reply, vote or report.</p>';
+}
+function loadGoogle() {
+  if (window.google?.accounts) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.onload = resolve;
+    s.onerror = () => {
+      s.remove();
+      reject(new Error("load"));
+    };
+    document.head.appendChild(s);
+  });
+}
+async function signIn(reason = "") {
+  if (config.user) return account();
+  modal(
+    "Sign in with Google",
+    `<h2 class="dialog-title">${esc(SIGNIN_REASONS[reason] || "A little accountability goes a long way.")}</h2><p class="muted small">Posting, replying, voting and reporting need an account. Scanning, reading reports and exporting fix plans never do.</p><div id="google-signin"></div><p class="form-status" id="signin-status" role="status"></p>${config.google_client_id ? "" : '<p class="notice login-config">Google sign-in needs an owner-supplied <code>GOOGLE_CLIENT_ID</code>. Add it to <code>.env</code> with this local origin authorized, then restart the app.</p>'}`,
+  );
+  if (!config.google_client_id) return;
+  const status = $("#signin-status");
+  const failed = (html) => {
+    status.classList.add("is-error");
+    status.innerHTML = html;
+    status.querySelector("button")?.focus();
+  };
+  try {
+    await loadGoogle();
+  } catch {
+    failed(
+      `Google sign-in didn’t load. Check your connection or content blocker. <button type="button" class="text-button" data-signin="${esc(reason)}">Try again</button>`,
     );
-    $("#logout").onclick = async () => {
+    return;
+  }
+  if (!$("#google-signin")) return;
+  google.accounts.id.initialize({
+    client_id: config.google_client_id,
+    callback: async (response) => {
+      status.classList.remove("is-error");
+      status.textContent = "Signing in…";
+      try {
+        await api("/login", {
+          method: "POST",
+          body: JSON.stringify({ credential: response.credential }),
+        });
+        await refreshConfig();
+        $("#modal").close();
+        notify(`Signed in as ${config.user?.name || "member"}.`);
+        route();
+      } catch (e) {
+        failed(`${esc(e.message)} Use the Google button to try again.`);
+      }
+    },
+  });
+  google.accounts.id.renderButton($("#google-signin"), {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+}
+function account() {
+  modal(
+    "Your account",
+    `<h2 class="dialog-title">${esc(config.user.name)}</h2><p class="muted small">Your email address is never stored or shown.</p><div class="dialog-actions"><button class="secondary" id="manage-social">Social roast permissions</button>${config.admin ? '<a class="secondary" href="/admin">Open moderation</a>' : ""}<button class="secondary" id="logout">Sign out</button></div><p class="form-status" id="account-status" role="status"></p>`,
+  );
+  $("#logout").onclick = async () => {
+    const button = $("#logout");
+    button.disabled = true;
+    $("#account-status").textContent = "Signing out…";
+    try {
       await api("/logout", { method: "POST", body: "{}" });
       await refreshConfig();
       $("#modal").close();
+      notify("Signed out.");
       route();
-    };
-    return;
-  }
-  modal(
-    "Sign in with Google",
-    `<h2 class="dialog-title">A little accountability goes a long way.</h2><p class="muted small">Sign in to post, reply, and vote. Scanning and reading stay free and anonymous.</p><div id="google-signin"></div>${config.google_client_id ? "" : '<p class="notice login-config">Google sign-in needs an owner-supplied <code>GOOGLE_CLIENT_ID</code>. Add it to <code>.env</code> with this local origin authorized, then restart the app.</p>'}`,
-  );
-  if (config.google_client_id) {
-    if (!window.google) {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = "https://accounts.google.com/gsi/client";
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
-      }).catch(() => notify("Google sign-in could not load."));
+    } catch (error) {
+      button.disabled = false;
+      $("#account-status").classList.add("is-error");
+      $("#account-status").textContent = error.message;
     }
-    if (window.google) {
-      google.accounts.id.initialize({
-        client_id: config.google_client_id,
-        callback: async (response) => {
-          try {
-            await api("/login", {
-              method: "POST",
-              body: JSON.stringify({ credential: response.credential }),
-            });
-            await refreshConfig();
-            $("#modal").close();
-            route();
-          } catch (e) {
-            notify(e.message);
-          }
-        },
-      });
-      google.accounts.id.renderButton($("#google-signin"), {
-        theme: "outline",
-        size: "large",
-        text: "signin_with",
-      });
-    }
-  }
+  };
 }
-$("#signin").onclick = signIn;
-function needAccount() {
+$("#signin").onclick = () => signIn();
+function needAccount(reason = "post") {
   if (config.user) return true;
-  signIn();
+  signIn(reason);
   return false;
 }
+// Unsent contribution text survives closing the dialog or an expired session.
+const drafts = new Map();
 function contribute(kind, findingId = null, parent = null, existing = null) {
   if (!needAccount()) return;
   const f = report?.findings.find((f) => f.id === findingId);
-  const title = existing?.title || (f ? `Review finding: ${f.title}` : "");
+  const key = [kind, findingId, parent, existing?.id].join(":");
+  const draft = drafts.get(key) || {};
+  const title =
+    draft.title ?? (existing?.title || (f ? `Review finding: ${f.title}` : ""));
   const topic = kind === "reply" && currentItems.find((x) => x.id === parent);
+  const hint = (id, text) => `<p class="field-hint" id="${id}">${text}</p>`;
   modal(
     existing
       ? "Edit your contribution"
@@ -543,39 +707,54 @@ function contribute(kind, findingId = null, parent = null, existing = null) {
         : kind === "reply"
           ? "Reply to this topic"
           : "Share something useful",
-    `<h2 class="dialog-title">${f ? "Let’s look at the evidence." : kind === "resource" ? "A resource with a purpose." : kind === "project" ? "Give your project some context." : "Make the discussion useful."}</h2>${topic ? `<p class="notice">Replying to: <strong>${esc(topic.title)}</strong></p>` : ""}${f ? `<p class="notice">Attached: ${esc(f.path)}:${f.start} at ${esc(report.sha.slice(0, 8))}. Commit-pinned evidence travels with this topic.</p>` : ""}<form class="field-form" id="contribution-form"><label for="entry-title">Title</label><input id="entry-title" required minlength="3" maxlength="140" value="${esc(title)}"><label for="entry-body">${kind === "resource" ? "What failure does it catch, and when should someone use it?" : "Context"}</label><textarea id="entry-body" required minlength="10" maxlength="5000" placeholder="What should someone know? What worked, what broke, or what did the grader miss?">${esc(existing?.body || "")}</textarea>${["project", "resource"].includes(kind) ? `<label for="entry-url">Public HTTPS link</label><input id="entry-url" type="url" required placeholder="https://…" value="${esc(existing?.url || "")}">` : ""}${kind === "project" ? '<label for="entry-report">Optional Slop Guard report link</label><input id="entry-report" type="url" placeholder="http://127.0.0.1:8000/reports/…">' : ""}<p>Sharing a project does not grant permission for social roasts. Featuring requires separate maintainer consent and admin verification.</p><button class="primary" type="submit">${existing ? "Save changes" : kind === "reply" ? "Post reply" : "Publish " + (kind === "topic" ? "topic" : kind)}</button><div id="form-error" role="alert"></div></form>`,
+    `<h2 class="dialog-title">${f ? "Let’s look at the evidence." : kind === "resource" ? "A resource with a purpose." : kind === "project" ? "Give your project some context." : "Make the discussion useful."}</h2>${topic ? `<p class="notice">Replying to: <strong>${esc(topic.title)}</strong></p>` : ""}${f ? `<p class="notice">Attached: ${esc(f.path)}:${f.start} at ${esc(report.sha.slice(0, 8))}. Commit-pinned evidence travels with this topic.</p>` : ""}<form class="field-form" id="contribution-form" novalidate><label for="entry-title">Title</label>${hint("entry-title-hint", "3–140 characters.")}<input id="entry-title" required minlength="3" maxlength="140" aria-describedby="entry-title-hint" value="${esc(title)}"><label for="entry-body">${kind === "resource" ? "What failure does it catch, and when should someone use it?" : "Context"}</label>${hint("entry-body-hint", "At least 10 characters.")}<textarea id="entry-body" required minlength="10" maxlength="5000" aria-describedby="entry-body-hint">${esc(draft.body ?? existing?.body ?? "")}</textarea>${["project", "resource"].includes(kind) ? `<label for="entry-url">Public HTTPS link</label><input id="entry-url" type="url" required placeholder="https://…" value="${esc(draft.url ?? existing?.url ?? "")}">` : ""}${kind === "project" ? `<label for="entry-report">Optional Slop Guard report link</label><input id="entry-report" type="url" placeholder="${esc(location.origin)}/reports/…" value="${esc(draft.report ?? "")}">` : ""}${kind === "project" ? "<p>Sharing a project does not grant permission for social roasts. Featuring requires separate maintainer consent and admin verification.</p>" : ""}<button class="primary" type="submit">${existing ? "Save changes" : kind === "reply" ? "Post reply" : "Publish " + (kind === "topic" ? "topic" : kind)}</button>${formStatus}</form>`,
   );
-  $("#contribution-form").onsubmit = async (e) => {
+  const form = $("#contribution-form");
+  form.oninput = (e) => {
+    drafts.set(key, {
+      title: $("#entry-title").value,
+      body: $("#entry-body").value,
+      url: $("#entry-url")?.value,
+      report: $("#entry-report")?.value,
+    });
+    if (e.target.getAttribute("aria-invalid") && !fieldMessage(e.target))
+      fieldError(e.target, "");
+  };
+  form.onsubmit = (e) => {
     e.preventDefault();
-    try {
-      const result = await api(
-        "/content" + (existing ? "/" + existing.id : ""),
-        {
-          method: existing ? "PUT" : "POST",
-          body: JSON.stringify({
-            kind,
-            title: $("#entry-title").value,
-            body: $("#entry-body").value,
-            url: $("#entry-url")?.value || "",
-            parent,
-            report: f
-              ? report.id
-              : kind === "project"
-                ? $("#entry-report")?.value.match(
-                    /\/reports\/([a-f0-9]{20})/,
-                  )?.[1] || null
-                : null,
-            finding: f?.id,
-          }),
-        },
-      );
-      $("#modal").close();
-      notify(existing ? "Changes saved." : "Published.");
-      if (kind === "topic") navigate("/forum?topic=" + result.id);
-      else route();
-    } catch (error) {
-      $("#form-error").textContent = error.message;
-    }
+    submitForm(
+      form,
+      async () => {
+        const result = await api(
+          "/content" + (existing ? "/" + existing.id : ""),
+          {
+            method: existing ? "PUT" : "POST",
+            body: JSON.stringify({
+              kind,
+              title: $("#entry-title").value,
+              body: $("#entry-body").value,
+              url: $("#entry-url")?.value || "",
+              parent,
+              report: f
+                ? report.id
+                : kind === "project"
+                  ? $("#entry-report")?.value.match(
+                      /\/reports\/([a-f0-9]{20})/,
+                    )?.[1] || null
+                  : null,
+              finding: f?.id,
+            }),
+          },
+        );
+        drafts.delete(key);
+        $("#modal").close();
+        notify(existing ? "Changes saved." : "Published.");
+        if (kind === "topic") navigate("/forum?topic=" + result.id);
+        else route();
+      },
+      existing ? "Saving…" : "Publishing…",
+      (error) => (/HTTPS link/.test(error.message) ? "url" : null),
+    );
   };
 }
 function pageHeader(title, intro, button = "") {
@@ -596,8 +775,9 @@ function linkLabel(url) {
 }
 function votesHtml(item) {
   const title = esc(item.title);
+  const hint = config.user ? "" : ' aria-describedby="signin-hint"';
   const count = `${item.votes} ${Math.abs(item.votes) === 1 ? "vote" : "votes"}`;
-  return `<span class="votes" role="group" aria-label="Popularity: ${count}"><button data-vote="${esc(item.id)}" data-dir="up" data-value="${item.my_vote === 1 ? 0 : 1}" class="${item.my_vote === 1 ? "chosen" : ""}" aria-pressed="${item.my_vote === 1}" aria-label="Upvote ${title}">▲</button><span class="vote-count" aria-hidden="true">${item.votes}</span><button data-vote="${esc(item.id)}" data-dir="down" data-value="${item.my_vote === -1 ? 0 : -1}" class="${item.my_vote === -1 ? "chosen" : ""}" aria-pressed="${item.my_vote === -1}" aria-label="Downvote ${title}">▼</button></span>`;
+  return `<span class="votes" role="group" aria-label="Popularity: ${count}"><button data-vote="${esc(item.id)}" data-dir="up" data-value="${item.my_vote === 1 ? 0 : 1}" class="${item.my_vote === 1 ? "chosen" : ""}" aria-pressed="${item.my_vote === 1}" aria-label="Upvote ${title}"${hint}>▲</button><span class="vote-count" aria-hidden="true">${item.votes}</span><button data-vote="${esc(item.id)}" data-dir="down" data-value="${item.my_vote === -1 ? 0 : -1}" class="${item.my_vote === -1 ? "chosen" : ""}" aria-pressed="${item.my_vote === -1}" aria-label="Downvote ${title}"${hint}>▼</button></span>`;
 }
 function itemHtml(item, { detail = false, replies = null } = {}) {
   const topicLink = item.kind === "topic" && !detail;
@@ -611,7 +791,7 @@ function itemHtml(item, { detail = false, replies = null } = {}) {
     item.kind === "resource" ? "Community" : "",
     replies != null ? `${replies} ${replies === 1 ? "reply" : "replies"}` : "",
   ].filter(Boolean);
-  return `<article class="contribution${item.kind === "reply" ? " reply" : ""}" id="item-${esc(item.id)}"><div class="contribution-meta">${meta.join('<span aria-hidden="true">·</span>')}</div>${heading}<p class="${detail || item.kind === "reply" ? "" : "clamp"}">${esc(item.body)}</p>${item.url ? `<p class="item-link"><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(linkLabel(item.url))}</a></p>` : ""}${item.evidence ? evidenceHtml(item.evidence) : ""}<div class="item-actions">${votesHtml(item)}${detail ? `<button class="text-button" data-reply="${esc(item.id)}">Reply</button>` : ""}${config.user?.id === item.owner ? `<button class="text-button" data-edit="${esc(item.id)}">Edit</button>` : ""}<button class="text-button" data-abuse="${esc(item.id)}">Report</button></div></article>`;
+  return `<article class="contribution${item.kind === "reply" ? " reply" : ""}" id="item-${esc(item.id)}"><div class="contribution-meta">${meta.join('<span aria-hidden="true">·</span>')}</div>${heading}<p class="${detail || item.kind === "reply" ? "" : "clamp"}">${esc(item.body)}</p>${item.url ? `<p class="item-link"><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(linkLabel(item.url))}</a></p>` : ""}${item.evidence ? evidenceHtml(item.evidence) : ""}<div class="item-actions">${votesHtml(item)}${detail ? `<button class="text-button" data-reply="${esc(item.id)}">Reply</button>` : ""}${config.user?.id === item.owner ? `<button class="text-button" data-edit="${esc(item.id)}">Edit</button>` : ""}<button class="text-button" data-abuse="${esc(item.id)}"${config.user ? "" : ' aria-describedby="signin-hint"'}>Report</button></div></article>`;
 }
 function evidenceHtml(raw) {
   try {
@@ -627,7 +807,7 @@ async function community() {
   const records = await api(`/content?kind=project&sort=${sort}`);
   currentItems = records;
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Community Slop", "Projects built with AI, and what people learned.", '<button class="primary" id="add-project">Share a project</button>')}<div class="toolbar">${sortTabs()}<span class="small muted">Votes show popularity, not code quality.</span></div>${records.length ? records.map((r) => itemHtml(r)).join("") : '<div class="empty"><h2>No projects yet.</h2><p>Share yours. Running a scan never posts it here.</p></div>'}</div>`;
+    `<div class="page">${pageHeader("Community Slop", "Projects built with AI, and what people learned.", '<button class="primary" id="add-project">Share a project</button>')}${signInHint()}<div class="toolbar">${sortTabs()}<span class="small muted">Votes show popularity, not code quality.</span></div>${records.length ? records.map((r) => itemHtml(r)).join("") : '<div class="empty"><h2>No projects yet.</h2><p>Share yours. Running a scan never posts it here.</p></div>'}</div>`;
   $("#add-project").onclick = () => contribute("project");
 }
 async function library() {
@@ -643,7 +823,7 @@ async function library() {
     )
     .join("");
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Anti-Slop Library", "Tools and workflows that catch specific failures.", '<button class="primary" id="add-resource">Suggest a resource</button>')}<div class="toolbar"><label class="visually-hidden" for="resource-search">Search the library</label><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-describedby="resource-count">${sortTabs()}</div><p class="small muted" id="resource-count" role="status"></p><div id="resource-list">${curated}${submitted.map((r) => itemHtml(r)).join("")}</div></div>`;
+    `<div class="page">${pageHeader("Anti-Slop Library", "Tools and workflows that catch specific failures.", '<button class="primary" id="add-resource">Suggest a resource</button>')}${signInHint()}<div class="toolbar"><label class="visually-hidden" for="resource-search">Search the library</label><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-describedby="resource-count">${sortTabs()}</div><p class="small muted" id="resource-count" role="status"></p><div id="resource-list">${curated}${submitted.map((r) => itemHtml(r)).join("")}</div></div>`;
   $("#add-resource").onclick = () => contribute("resource");
   const search = $("#resource-search");
   const total = seeds.length + submitted.length;
@@ -685,7 +865,7 @@ async function forum() {
     body = `<div class="toolbar">${sortTabs()}</div>${topics.length ? topics.map((t) => itemHtml(t, { replies: count(t.id) })).join("") : '<div class="empty"><h2>No topics yet.</h2><p>Disagree with a finding? Use “Discuss this finding” on a report.</p></div>'}`;
   }
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Slop Form", "Questions and challenges to findings, with evidence.", '<button class="primary" id="add-topic">Start a topic</button>')}${body}</div>`;
+    `<div class="page">${pageHeader("Slop Form", "Questions and challenges to findings, with evidence.", '<button class="primary" id="add-topic">Start a topic</button>')}${signInHint()}${body}</div>`;
   $("#add-topic").onclick = () => contribute("topic");
   if (topic) titleOverride = `${topic.title} · Slop Form`;
 }
@@ -699,9 +879,37 @@ function methodology() {
     `<div class="page prose">${pageHeader("How grading works", "Two independent scores and a visible scope.")}<nav class="toc" aria-label="On this page"><ul><li><a href="#rubric">Deterministic rubric</a></li><li><a href="#ai">Probabilistic AI Slop</a></li><li><a href="#scope">What a scan covers</a></li><li><a href="#grades">Grade names</a></li><li><a href="#sources">Sources</a></li></ul></nav><p>Slop Guard reviews observable code quality. Neither score estimates whether a person or an AI wrote the code. Higher scores mean more observed problems, on a scale of 0–100.</p><h2 id="rubric">Deterministic rubric · v1.0</h2><div class="table-scroll" role="region" aria-label="Deterministic rubric" tabindex="0"><table><caption class="visually-hidden">Deterministic rubric signals and points</caption><thead><tr><th>Signal</th><th>Raw points</th><th>What it means</th></tr></thead><tbody><tr><td>Tautological Python test</td><td>18</td><td>A test body contains only assertions of literal True.</td></tr><tr><td>Identical Python branches</td><td>12</td><td>The two AST branches have identical statements.</td></tr><tr><td>Ruff undefined name F821</td><td>10</td><td>A referenced Python name is not defined.</td></tr><tr><td>TypeScript syntax diagnostic</td><td>8</td><td>Trusted compiler parser rejects the syntax.</td></tr><tr><td>Unused import / variable</td><td>2</td><td>Ruff F401 / F841, with isolated configuration.</td></tr><tr><td>File &gt;500 / function &gt;80 lines</td><td>1 each</td><td>Weak signals, combined cap of 5.</td></tr><tr><td>Comment length or density</td><td>0</td><td>Descriptive metrics only; verbosity is not a defect.</td></tr></tbody></table></div><p>Normalize substantive points by <code>max(1, inspected lines / 1,000)</code>, round and cap at 95. Add weak style points capped at 5. Each emitted rule/location is unique; separate rules can describe separate issues. Fewer than 10 inspected lines yields “insufficient coverage.” Partial scans describe only their inspected subset.</p><p>Worked example: a 500-line snapshot with one useless test (18) and two unused imports (4) scores 22. A long, useful 100-line comment scores 0. A 2,000-line snapshot with the same findings scores 11.</p><h2 id="ai">Probabilistic AI Slop</h2><p>When an eligible free review provider is configured (Groq GPT-OSS by default, or Gemini Flash for an eligible pilot), it reviews bounded excerpts for contextual defects. We require a file path, line range, exact quotation, consequence, correction, and acceptance check. Invalid evidence is discarded. Confidence is a model judgment: high findings contribute 18, medium 9, low 3, capped at 100. This is not a calibrated probability. A matching quote confirms the evidence, not the interpretation.</p><h2 id="scope">What a scan can—and cannot—cover</h2><p>Up to 35 files, 40 KB per file, 280 KB total, in stable path order. Python and JS/TS source only. Generated, binary, minified, vendored, lock, symlink, and submodule content is excluded. No cloning, dependency installation, submitted code execution, or repository-supplied executable configuration. Type checking and dependency-aware JS/TS unused-name checks are explicitly skipped. A bounded README is checked for literal Python or Node commands pointing to missing source scripts, when the tree is complete; working-directory intent still needs review.</p><p>The app publishes coverage and skipped checks. A low score is not proof of correctness. Snapshots and model reviews are cached by commit and review configuration. Mode switches and fix-plan exports make no model calls.</p><h2 id="grades">Satirical grade names</h2><p>Satirical mode adds a name under each score. The numbers, evidence and caveats are identical in both modes, and the names never appear in Serious mode or in exported fix plans. They roast the code, never the people who wrote it.</p><table><caption class="visually-hidden">Satirical grade names by score</caption><thead><tr><th>Score</th><th>Satirical name</th></tr></thead><tbody>${SLOP_GRADES.map(([min], i) => `<tr><td>${min}–${i + 1 < SLOP_GRADES.length ? SLOP_GRADES[i + 1][0] - 1 : 100}</td><td>${esc(SLOP_GRADES[i][1])}</td></tr>`).join("")}</tbody></table><p>No score (insufficient coverage or not reviewed) gets no name.</p><h2 id="sources">Sources behind the approach</h2><ul><li><a href="https://google.github.io/eng-practices/review/reviewer/looking-for.html">Google Engineering Practices: review behavior, tests, and complexity</a></li><li><a href="https://docs.astral.sh/ruff/rules/">Astral: Ruff rules and correctness checks</a></li><li><a href="https://www.typescriptlang.org/docs/handbook/compiler-api.html">Microsoft: TypeScript compiler API</a></li><li><a href="https://ai.google.dev/gemini-api/docs/rate-limits">Google: project quotas and Pacific daily reset</a></li><li><a href="https://ai.google.dev/gemini-api/terms">Google: free-tier terms and audience restrictions</a></li></ul></div>`;
 }
 async function moderation() {
-  const records = await api("/admin");
+  let records;
+  try {
+    records = await api("/admin");
+  } catch (error) {
+    if (![401, 403].includes(error.status)) throw error;
+    $("#view").innerHTML =
+      `<div class="page">${pageHeader("Moderation", "Reported contributions. Admins only.")}<div class="empty"><h2>${error.status === 401 ? "Sign in to continue." : "This page is for admins."}</h2><p>${error.status === 401 ? "Moderation needs an admin account." : "Your account can read, post and report, but not moderate."} Anyone can report a contribution from its Report button.</p>${error.status === 401 ? '<button class="primary" data-signin="">Sign in</button>' : '<a class="secondary" href="/forum">Back to Slop Form</a>'}</div></div>`;
+    return;
+  }
+  const items = new Map();
+  for (const r of records) {
+    if (!items.has(r.item)) items.set(r.item, { ...r, reasons: [] });
+    items.get(r.item).reasons.push(r.reason);
+  }
+  const kinds = {
+    project: "Project",
+    resource: "Resource",
+    topic: "Topic",
+    reply: "Reply",
+  };
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Moderation", "Reported contributions. Admins only.")} ${records.length ? records.map((r) => `<article class="resource"><h2>${esc(r.title)}</h2><p>${esc(r.body)}</p><p><strong>Report reason:</strong> ${esc(r.reason)}</p><button class="secondary" data-hide="${esc(r.item)}">Hide contribution</button></article>`).join("") : '<p class="muted">No unresolved reports.</p>'}</div>`;
+    `<div class="page">${pageHeader("Moderation", "Reported contributions. Admins only.")}<p class="small muted">Hiding removes a contribution from public lists and resolves its reports. It is not deleted.</p>${
+      items.size
+        ? [...items.values()]
+            .map(
+              (r) =>
+                `<article class="resource moderation-item" id="mod-${esc(r.item)}"><div class="contribution-meta">${esc(kinds[r.kind] || r.kind)}<span aria-hidden="true">·</span>${r.reasons.length} ${r.reasons.length === 1 ? "report" : "reports"}</div><h2>${esc(r.title)}</h2><p class="clamp">${esc(r.body)}</p>${r.url ? `<p class="item-link"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(linkLabel(r.url))}</a></p>` : ""}${r.kind === "topic" ? `<p><a href="/forum?topic=${esc(r.item)}">Open topic</a></p>` : ""}<h3 class="report-reasons">Why it was reported</h3><ul>${r.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><div class="dialog-actions" data-actions-for="${esc(r.item)}"><button class="secondary" data-hide="${esc(r.item)}">Hide contribution</button></div></article>`,
+            )
+            .join("")
+        : '<div class="empty"><h2>No unresolved reports.</h2><p>New reports from members appear here.</p></div>'
+    }</div>`;
 }
 const header = $("header");
 const menuToggle = $("#menu-toggle");
@@ -810,7 +1018,7 @@ document.addEventListener("click", async (e) => {
     await route();
     $(`#view [data-sort="${sort}"]`)?.focus();
   }
-  if (el.dataset.vote && needAccount()) {
+  if (el.dataset.vote && needAccount("vote")) {
     try {
       await api(`/content/${el.dataset.vote}/vote`, {
         method: "POST",
@@ -826,33 +1034,50 @@ document.addEventListener("click", async (e) => {
       notify(error.message);
     }
   }
-  if (el.dataset.abuse && needAccount()) {
+  if (el.dataset.abuse && needAccount("report")) {
+    const item = currentItems.find((x) => x.id === el.dataset.abuse);
     modal(
       "Report a contribution",
-      '<h2 class="dialog-title">What needs a closer look?</h2><form id="abuse-form" class="field-form"><label for="reason">Reason for reporting</label><textarea id="reason" required minlength="5" maxlength="1000"></textarea><button class="primary">Send report</button></form>',
+      `<h2 class="dialog-title">What needs a closer look?</h2>${item ? `<p class="notice">Reporting: <strong>${esc(item.title)}</strong></p>` : ""}<p class="small muted">An admin reviews every report. The contribution stays visible until then.</p><form id="abuse-form" class="field-form" novalidate><label for="reason">Reason for reporting</label><p class="field-hint" id="reason-hint">At least 5 characters. Only admins see this.</p><textarea id="reason" required minlength="5" maxlength="1000" aria-describedby="reason-hint"></textarea><button class="primary" type="submit">Send report</button>${formStatus}</form>`,
     );
-    $("#abuse-form").onsubmit = async (event) => {
+    const form = $("#abuse-form");
+    form.onsubmit = (event) => {
       event.preventDefault();
-      try {
+      submitForm(form, async () => {
         await api(`/content/${el.dataset.abuse}/report`, {
           method: "POST",
           body: JSON.stringify({ reason: $("#reason").value }),
         });
         $("#modal").close();
         notify("Report sent for admin review.");
-      } catch (error) {
-        notify(error.message);
-      }
+      });
     };
   }
   if (el.dataset.hide) {
+    const actions = el.closest("[data-actions-for]");
+    actions.innerHTML = `<p class="small">Hide this from public lists?</p><button class="primary" data-hide-confirm="${esc(el.dataset.hide)}">Hide</button><button class="secondary" data-hide-cancel="${esc(el.dataset.hide)}">Cancel</button>`;
+    actions.querySelector("[data-hide-cancel]").focus();
+  }
+  if (el.dataset.hideCancel) {
+    const actions = el.closest("[data-actions-for]");
+    actions.innerHTML = `<button class="secondary" data-hide="${esc(el.dataset.hideCancel)}">Hide contribution</button>`;
+    actions.querySelector("button").focus();
+  }
+  if (el.dataset.hideConfirm) {
+    el.disabled = true;
+    el.textContent = "Hiding…";
     try {
-      await api(`/admin/${el.dataset.hide}/hide`, {
+      await api(`/admin/${el.dataset.hideConfirm}/hide`, {
         method: "POST",
         body: "{}",
       });
-      moderation();
+      await moderation();
+      notify("Contribution hidden and its reports resolved.");
+      $("#view h1").tabIndex = -1;
+      $("#view h1").focus();
     } catch (error) {
+      el.disabled = false;
+      el.textContent = "Hide";
       notify(error.message);
     }
   }
@@ -880,41 +1105,61 @@ window.addEventListener("popstate", () => {
   route({ focus: true });
 });
 function offerSocial(id) {
-  if (!needAccount()) return;
+  if (!needAccount("social")) return;
   modal(
     "Separate maintainer opt-in",
-    `<h2 class="dialog-title">Your code. Your call.</h2><p class="small muted">An admin must verify the maintainer, check the finding, and approve a draft. Publishing stays manual.</p><form class="field-form" id="social-form"><label for="social-proof">Public maintainer proof inside this repo</label><input id="social-proof" type="url" required placeholder="https://github.com/owner/repo/issues/…"><label for="social-credit">Credit: handle or Anonymous</label><input id="social-credit" value="Anonymous" maxlength="100" required><p class="checkbox-row"><input type="checkbox" id="is-maintainer" required><label for="is-maintainer">I maintain this repository and can establish that identity.</label></p><p class="checkbox-row"><input type="checkbox" id="social-consent" required><label for="social-consent">I explicitly opt in to featuring this finding in a social roast with the credit above.</label></p><button class="primary">Request manual verification</button><p id="social-error" role="alert"></p></form>`,
+    `<h2 class="dialog-title">Your code. Your call.</h2><ol class="consent-steps small"><li>You ask here. Nothing is posted.</li><li>An admin checks that you maintain <strong>${esc(report.repo)}</strong>.</li><li>An admin drafts the roast and publishes it by hand.</li></ol><p class="small muted">You can revoke from your account menu at any time. A revoked request is never drafted.</p><form class="field-form" id="social-form" novalidate><label for="social-proof">Public maintainer proof inside this repository</label><p class="field-hint" id="social-proof-hint">A link under github.com/${esc(report.repo)}/, such as an issue or commit by your GitHub account.</p><input id="social-proof" type="url" required aria-describedby="social-proof-hint" placeholder="https://github.com/${esc(report.repo)}/issues/…"><fieldset class="choice"><legend>Credit</legend><p class="checkbox-row"><input type="radio" name="credit" id="credit-anon" value="anon" checked><label for="credit-anon">Anonymous</label></p><p class="checkbox-row"><input type="radio" name="credit" id="credit-name" value="name"><label for="credit-name">Credit me by name or handle</label></p><label for="social-credit-name" class="visually-hidden">Name or handle for credit</label><input id="social-credit-name" maxlength="100" disabled placeholder="@handle"></fieldset><p class="checkbox-row"><input type="checkbox" id="is-maintainer" required><label for="is-maintainer">I maintain this repository and can establish that identity.</label></p><p class="checkbox-row"><input type="checkbox" id="social-consent" required><label for="social-consent">I opt in to featuring this finding in a social roast with the credit above.</label></p><button class="primary" type="submit">Request manual verification</button>${formStatus}</form>`,
   );
-  $("#social-form").onsubmit = async (e) => {
+  const form = $("#social-form");
+  const name = $("#social-credit-name");
+  form.onchange = (e) => {
+    if (e.target.name !== "credit") return;
+    name.disabled = e.target.value !== "name";
+    name.required = !name.disabled;
+    if (name.disabled) fieldError(name, "");
+    else name.focus();
+  };
+  form.onsubmit = (e) => {
     e.preventDefault();
-    try {
-      await api("/social", {
-        method: "POST",
-        body: JSON.stringify({
-          report: report.id,
-          finding: id,
-          proof_url: $("#social-proof").value,
-          credit: $("#social-credit").value,
-          maintainer: $("#is-maintainer").checked,
-          consent: $("#social-consent").checked,
-        }),
-      });
-      $("#modal").close();
-      notify(
-        "Opt-in recorded. Pending manual verification; nothing published.",
-      );
-    } catch (error) {
-      $("#social-error").textContent = error.message;
-    }
+    submitForm(
+      form,
+      async () => {
+        await api("/social", {
+          method: "POST",
+          body: JSON.stringify({
+            report: report.id,
+            finding: id,
+            proof_url: $("#social-proof").value.trim(),
+            credit: name.disabled ? "Anonymous" : name.value.trim(),
+            maintainer: $("#is-maintainer").checked,
+            consent: $("#social-consent").checked,
+          }),
+        });
+        modal(
+          "Separate maintainer opt-in",
+          `<h2 class="dialog-title" tabindex="-1">Request recorded.</h2><p>Status: <strong>pending manual verification</strong>. Nothing has been published.</p><div class="dialog-actions"><button class="secondary" id="manage-social">Social roast permissions</button><button class="secondary" id="done-social" autofocus>Done</button></div>`,
+        );
+        $("#done-social").onclick = () => $("#modal").close();
+      },
+      "Sending request…",
+      (error) => (/proof link/.test(error.message) ? "proof_url" : null),
+    );
   };
 }
-async function manageSocial() {
+const SOCIAL_STATUS = (i) =>
+  i.revoked
+    ? "Revoked. It will not be drafted."
+    : i.verified_by
+      ? "Verified by an admin. Any post is made by hand."
+      : "Pending manual verification. Nothing published.";
+async function manageSocial(announce = "") {
   try {
     const items = await api("/social");
     modal(
-      "Your social permissions",
-      `<h2 class="dialog-title">You stay in control.</h2>${items.length ? items.map((i) => `<div class="resource"><p>Report ${esc(i.report)} · ${esc(i.credit)} · ${i.revoked ? "Revoked" : i.verified_by ? "Verified" : "Pending verification"}</p>${!i.revoked ? `<button class="secondary" data-revoke="${esc(i.id)}">Revoke consent</button>` : ""}</div>`).join("") : '<p class="muted">No social roast permissions granted.</p>'}`,
+      "Social roast permissions",
+      `<h2 class="dialog-title" tabindex="-1">You stay in control.</h2><p class="form-status" role="status">${esc(announce)}</p>${items.length ? `<ul class="consent-list">${items.map((i) => `<li class="resource"><p><a href="/reports/${esc(i.report)}">Report ${esc(i.report.slice(0, 8))}</a><span aria-hidden="true"> · </span>Credit: ${esc(i.credit)}</p><p class="small">${SOCIAL_STATUS(i)}</p>${!i.revoked ? `<button class="secondary" data-revoke="${esc(i.id)}" aria-label="Revoke consent for report ${esc(i.report.slice(0, 8))}">Revoke consent</button>` : ""}</li>`).join("")}</ul>` : '<p class="muted">You have not offered any findings. Use “Offer for a social roast” under a finding in a report.</p>'}`,
     );
+    if (announce) $("#modal .dialog-title").focus();
   } catch (error) {
     notify(error.message);
   }
@@ -934,20 +1179,20 @@ document.addEventListener("click", async (e) => {
   const el = e.target.closest("button");
   if (!el) return;
   if (el.dataset.social) offerSocial(el.dataset.social);
-  if (el.id === "signin" && config.user)
-    $("#modal-body").insertAdjacentHTML(
-      "beforeend",
-      '<p><button class="text-button" id="manage-social">Manage social permissions</button></p>',
-    );
+  if (el.dataset.signin !== undefined) signIn(el.dataset.signin);
   if (el.id === "manage-social") manageSocial();
   if (el.dataset.revoke) {
+    el.disabled = true;
+    el.textContent = "Revoking…";
     try {
       await api("/social/" + el.dataset.revoke, {
         method: "DELETE",
         body: "{}",
       });
-      manageSocial();
+      manageSocial("Consent revoked.");
     } catch (error) {
+      el.disabled = false;
+      el.textContent = "Revoke consent";
       notify(error.message);
     }
   }
@@ -956,19 +1201,18 @@ document.addEventListener("click", async (e) => {
     const id = el.dataset.verify;
     modal(
       "Record manual verification",
-      '<h2 class="dialog-title">How did you establish ownership?</h2><form class="field-form" id="verify-form"><label for="verify-notes">Evidence that this account is the consenting maintainer</label><textarea id="verify-notes" required minlength="20" maxlength="2000"></textarea><button class="primary">Confirm verification</button></form>',
+      `<h2 class="dialog-title">How did you establish ownership?</h2><form class="field-form" id="verify-form" novalidate><label for="verify-notes">Evidence that this account is the consenting maintainer</label><p class="field-hint" id="verify-notes-hint">At least 20 characters.</p><textarea id="verify-notes" required minlength="20" maxlength="2000" aria-describedby="verify-notes-hint"></textarea><button class="primary" type="submit">Confirm verification</button>${formStatus}</form>`,
     );
-    $("#verify-form").onsubmit = async (event) => {
+    const form = $("#verify-form");
+    form.onsubmit = (event) => {
       event.preventDefault();
-      try {
+      submitForm(form, async () => {
         await api("/admin/social/" + id + "/verify", {
           method: "POST",
           body: JSON.stringify({ notes: $("#verify-notes").value }),
         });
         socialAdmin();
-      } catch (error) {
-        notify(error.message);
-      }
+      });
     };
   }
   if (el.dataset.draft) {
