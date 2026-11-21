@@ -12,15 +12,15 @@ Evidence (measured in the browser) is kept separate from design decisions (hypot
 
 ## Route and state inventory
 
-| Route | States exercised | Notes |
-| --- | --- | --- |
-| `/` | AI available, cooldown, exhausted, unknown, disabled | Fresh-AI checkbox disables and unchecks in every non-available state; Grade my repo stays enabled. |
-| `/reports/local-fixture` | 4 deterministic findings, AI not reviewed, Serious and Satirical | 4th finding sits inside "Show remaining findings". |
-| `/community`, `/forum`, `/portfolio` | Empty | Empty states are honest; portfolio empty state exposes `content/portfolio.json` to visitors. |
-| `/library` | Curated seeds, no submissions | Search filters seeds and submissions. |
-| `/methodology` | Static | Table at 375px fits without document overflow. |
-| `/admin` | Non-admin fixture user | Server rejects; generic "That didn't load." page. |
-| Fixture states not available | Partial coverage, insufficient coverage, missing report, network failure, admin identity | Need fixture extensions in UI-09. |
+| Route                                | States exercised                                                                         | Notes                                                                                              |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `/`                                  | AI available, cooldown, exhausted, unknown, disabled                                     | Fresh-AI checkbox disables and unchecks in every non-available state; Grade my repo stays enabled. |
+| `/reports/local-fixture`             | 4 deterministic findings, AI not reviewed, Serious and Satirical                         | 4th finding sits inside "Show remaining findings".                                                 |
+| `/community`, `/forum`, `/portfolio` | Empty                                                                                    | Empty states are honest; portfolio empty state exposes `content/portfolio.json` to visitors.       |
+| `/library`                           | Curated seeds, no submissions                                                            | Search filters seeds and submissions.                                                              |
+| `/methodology`                       | Static                                                                                   | Table at 375px fits without document overflow.                                                     |
+| `/admin`                             | Non-admin fixture user                                                                   | Server rejects; generic "That didn't load." page.                                                  |
+| Fixture states not available         | Partial coverage, insufficient coverage, missing report, network failure, admin identity | Need fixture extensions in UI-09.                                                                  |
 
 ## Measured findings (375×812 unless noted)
 
@@ -184,3 +184,16 @@ Branch `feature/ui-07-community-pages` from `dev` at `3f8ca2c`. Same fixture env
 - **Escaping:** the injected `<img onerror>` title and `<script>` body render as text; no script ran.
 - **Widths:** no overflow at 320, 390, 768 and 1440px on community, library, forum, topic, portfolio, methodology and home. No controls under 44px.
 - **Checks:** 45 pytest, `node --check` and Prettier passed. Screenshot: `after-ui-07/topic-390.jpg`.
+
+## Satirical grade names (2026-11-20)
+
+Built on `feature/satirical-grade-scale` from `dev` at `3f8ca2c`, then combined with UI-07 on `feature/ui-07-community-pages` for one PR.
+
+- **Scale:** in Satirical mode each score shows a grade name underneath: 0–4 "Suspiciously pristine", 5–14 "Hand-crafted, small batch", 15–29 "A light glaze of slop", 30–49 "Slop-curious", 50–69 "Certified sloppy", 70–84 "Industrial-grade slop", 85–100 "Contains traces of code".
+- **Presentation only:** the number, evidence, quota line and status words ("Insufficient coverage", "Not reviewed", "Model judgment") are unchanged. A missing score gets no name. Serious mode and the exported fix plan never show names.
+- **Methodology:** a "Satirical grade names" section with a table generated from the same `SLOP_GRADES` list, so the page can't drift from the UI.
+- **Checks:**
+  - Boundary values (0, 4, 5, 14, 15, 29, 30, 49, 50, 69, 70, 84, 85, 100 and null) map correctly.
+  - In the fixture: Satirical 42 shows "Slop-curious"; Serious shows none; a null deterministic score with AI 91 shows no name on the first box and "Contains traces of code" plus "Model judgment" on the second; the plan export contains no names; no overflow at 390px.
+  - 45 pytest, `node --check` and Prettier passed.
+- **Screenshot:** `after-grades/satirical-scores-390.png`.

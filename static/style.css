@@ -1063,6 +1063,13 @@ footer a:hover {
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
+.grade-name {
+  margin-top: var(--s2);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-style: italic;
+  font-weight: 600;
+}
 .score-note {
   margin: var(--s3) 0 0;
   color: var(--ink-2);
