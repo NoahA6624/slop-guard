@@ -5,11 +5,14 @@ import base64
 import hashlib
 import importlib.util
 import json
+import math
+import os
 import re
 import shutil
 import subprocess
 import sys
 import time
+from collections import OrderedDict
 from pathlib import PurePosixPath
 from urllib.parse import quote
 
@@ -67,53 +70,227 @@ def eligible(item):
     )
 
 
-async def github(path):
-    async with httpx.AsyncClient(timeout=12, follow_redirects=False) as client:
-        async with client.stream(
-            "GET",
-            "https://api.github.com" + path,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "User-Agent": "Slop-Guard-local",
-            },
-        ) as response:
+GITHUB_API = "https://api.github.com"
+RESOLVE_TTL = 60
+TREE_CACHE_MAX = 2_000_000
+CACHE_BUDGET = 16_000_000
+ETAG_ENTRIES = 256
+
+
+class _GitHubState:
+    """Process-local request savings. GitHub objects addressed by SHA never
+    change, so they are reused across scans; mutable lookups are revalidated
+    with ETags and briefly memoized; the last seen rate-limit headers let a
+    scan stop before spending requests GitHub will refuse."""
+
+    def __init__(self):
+        self.objects = OrderedDict()
+        self.object_bytes = 0
+        self.etags = OrderedDict()
+        self.resolved = {}
+        self.remaining = None
+        self.reset = None
+        self.requests = 0
+
+    def remember(self, key, value, size):
+        if size > CACHE_BUDGET // 4:
+            return
+        if key in self.objects:
+            self.object_bytes -= self.objects.pop(key)[1]
+        self.objects[key] = (value, size)
+        self.object_bytes += size
+        while self.object_bytes > CACHE_BUDGET:
+            self.object_bytes -= self.objects.popitem(last=False)[1][1]
+
+    def recall(self, key):
+        if key not in self.objects:
+            return None
+        self.objects.move_to_end(key)
+        return self.objects[key][0]
+
+
+state = _GitHubState()
+
+
+def reset_github_state():
+    global state
+    state = _GitHubState()
+
+
+def _new_client():
+    return httpx.AsyncClient(timeout=12, follow_redirects=False)
+
+
+def _headers():
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Slop-Guard-local",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    return headers
+
+
+def _wait_text(reset):
+    minutes = max(1, math.ceil((reset - time.time()) / 60))
+    return f"about {minutes} minute{'s' if minutes != 1 else ''}"
+
+
+def ensure_budget(needed):
+    """Refuse before calling GitHub when the last response says too few
+    requests remain, instead of spending them on a scan that cannot finish."""
+    if (
+        state.remaining is not None
+        and state.reset
+        and state.reset > time.time()
+        and state.remaining < needed
+    ):
+        raise ScanError(
+            f"GitHub’s API limit for this server is too low to finish a scan. Try again in {_wait_text(state.reset)}; cached reports still work."
+        )
+
+
+def _record_limits(response):
+    try:
+        if "x-ratelimit-remaining" in response.headers:
+            state.remaining = int(response.headers["x-ratelimit-remaining"])
+        if "x-ratelimit-reset" in response.headers:
+            state.reset = int(response.headers["x-ratelimit-reset"])
+        if response.headers.get("retry-after", "").isdigit():
+            state.remaining = 0
+            state.reset = time.time() + int(response.headers["retry-after"])
+    except ValueError:
+        pass
+
+
+async def github(path, client=None, revalidate=False):
+    """GET one GitHub REST resource. With revalidate, send the stored ETag;
+    GitHub answers 304 with no body when nothing changed."""
+    ensure_budget(1)
+    headers = _headers()
+    cached = state.etags.get(path) if revalidate else None
+    if cached:
+        headers["If-None-Match"] = cached[0]
+    owned = client is None
+    client = client or _new_client()
+    try:
+        async with client.stream("GET", GITHUB_API + path, headers=headers) as response:
+            state.requests += 1
+            _record_limits(response)
             chunks = bytearray()
-            async for chunk in response.aiter_bytes():
-                chunks.extend(chunk)
-                if len(chunks) > 9_000_000:
-                    raise ScanError(
-                        "The repository inventory exceeded the safe response limit."
-                    )
-    if response.status_code == 404:
+            if response.status_code == 200:
+                async for chunk in response.aiter_bytes():
+                    chunks.extend(chunk)
+                    if len(chunks) > 9_000_000:
+                        raise ScanError(
+                            "The repository inventory exceeded the safe response limit."
+                        )
+    finally:
+        if owned:
+            await client.aclose()
+    if response.status_code == 304 and cached:
+        state.etags.move_to_end(path)
+        return cached[1]
+    if response.status_code in {404, 451}:
         raise ScanError(
             "Repository or revision not found. Only public repositories are supported."
         )
-    if response.status_code in {403, 429}:
-        raise ScanError(
-            "GitHub’s public API limit is reached. Try again after its reset; cached reports still work."
+    if response.status_code == 429 or (
+        response.status_code == 403 and state.remaining == 0
+    ):
+        wait = (
+            f"Try again in {_wait_text(state.reset)}"
+            if state.reset and state.reset > time.time()
+            else "Try again after its reset"
         )
+        raise ScanError(
+            f"GitHub’s public API limit is reached. {wait}; cached reports still work."
+        )
+    if response.status_code == 403:
+        raise ScanError("GitHub refused access to this repository.")
     if response.status_code != 200:
         raise ScanError("GitHub is unavailable right now. Try again shortly.")
-    return json.loads(chunks)
+    body = json.loads(chunks)
+    etag = response.headers.get("etag")
+    if revalidate and etag:
+        state.etags[path] = (etag, body)
+        state.etags.move_to_end(path)
+        while len(state.etags) > ETAG_ENTRIES:
+            state.etags.popitem(last=False)
+    return body
 
 
 async def resolve(repo):
-    meta = await github("/repos/" + repo)
-    if meta.get("private"):
-        raise ScanError("Only public repositories are supported.")
-    commit = await github(
-        f"/repos/{repo}/commits/{quote(meta['default_branch'], safe='')}"
-    )
+    key = repo.lower()
+    memo = state.resolved.get(key)
+    if memo and memo[1] > time.monotonic():
+        return memo[0]
+    async with _new_client() as client:
+        meta = await github("/repos/" + repo, client, revalidate=True)
+        if meta.get("private"):
+            raise ScanError("Only public repositories are supported.")
+        commit = await github(
+            f"/repos/{repo}/commits/{quote(meta['default_branch'], safe='')}",
+            client,
+            revalidate=True,
+        )
+    state.resolved[key] = (commit["sha"], time.monotonic() + RESOLVE_TTL)
+    if len(state.resolved) > ETAG_ENTRIES:
+        state.resolved = {
+            k: v for k, v in state.resolved.items() if v[1] > time.monotonic()
+        }
     return commit["sha"]
 
 
+async def _tree(repo, sha, client):
+    key = ("tree", repo.lower(), sha)
+    tree = state.recall(key)
+    if tree is None:
+        tree = await github(f"/repos/{repo}/git/trees/{sha}?recursive=1", client)
+        if len(tree.get("tree", [])) * 200 <= TREE_CACHE_MAX:
+            state.remember(key, tree, len(tree.get("tree", [])) * 200)
+    return tree
+
+
+async def _blob(repo, blob_sha, client):
+    """Blob bytes by content SHA; identical files are fetched once."""
+    raw = state.recall(("blob", blob_sha))
+    if raw is None:
+        blob = await github(f"/repos/{repo}/git/blobs/{blob_sha}", client)
+        raw = base64.b64decode(blob["content"], validate=False)
+        state.remember(("blob", blob_sha), raw, len(raw))
+    return raw
+
+
 async def fetch_files(repo, sha):
+    async with _new_client() as client:
+        return await _fetch_files(repo, sha, client)
+
+
+def _planned(items):
+    """Blobs the byte budget allows, so the request budget can be checked first."""
+    planned, used = [], 0
+    for item in items[:MAX_FILES]:
+        if used + item["size"] > MAX_BYTES:
+            break
+        planned.append(item)
+        used += item["size"]
+    return planned
+
+
+async def _fetch_files(repo, sha, client):
     started = time.monotonic()
-    tree = await github(f"/repos/{repo}/git/trees/{sha}?recursive=1")
+    ensure_budget(2)
+    tree = await _tree(repo, sha, client)
     items = sorted(
         (i for i in tree.get("tree", []) if eligible(i)), key=lambda i: i["path"]
     )
     files, used, reasons = {}, 0, []
+    ensure_budget(
+        sum(state.recall(("blob", i["sha"])) is None for i in _planned(items)) + 1
+    )
     if tree.get("truncated"):
         reasons.append(
             "GitHub returned a truncated tree; the eligible inventory is incomplete."
@@ -122,9 +299,8 @@ async def fetch_files(repo, sha):
         if time.monotonic() - started > 65 or used + item["size"] > MAX_BYTES:
             reasons.append("The scan reached its time or byte budget.")
             break
-        blob = await github(f"/repos/{repo}/git/blobs/{item['sha']}")
         try:
-            raw = base64.b64decode(blob["content"], validate=False)
+            raw = await _blob(repo, item["sha"], client)
             if len(raw) > MAX_FILE or b"\0" in raw:
                 reasons.append(f"{item['path']}: oversized or binary blob skipped.")
                 continue
@@ -153,9 +329,8 @@ async def fetch_files(repo, sha):
             None,
         )
         if entry:
-            blob = await github(f"/repos/{repo}/git/blobs/{entry['sha']}")
             try:
-                raw = base64.b64decode(blob["content"])
+                raw = await _blob(repo, entry["sha"], client)
                 if len(raw) <= MAX_FILE:
                     readme = {"path": entry["path"], "text": raw.decode("utf-8")}
                     used += len(raw)

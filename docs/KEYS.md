@@ -52,6 +52,21 @@ In an existing no-billing Google Cloud project, configure the OAuth consent scre
 
 If the consent app is in testing, add your intended testers in Google's console. Production requires your actual HTTPS origin and Google's applicable consent/verification requirements. The server verifies signature, audience, issuer, expiry, and verified email using Google's library; it stores the Google `sub` and display name, never the email. Put the owner's verified `sub` in `ADMIN_GOOGLE_SUBS` to grant moderation rights. [Client setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid), [server verification](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token).
 
+## 5. GitHub API: request budget and optional token
+
+Scans read public repositories through GitHub's REST API. Without a token GitHub allows 60 requests per hour per server IP; a fresh scan costs at most 39 (repository, commit, tree, up to 35 file blobs, README). The scanner keeps that low:
+
+- Repeated scans of the same repository within 60 seconds reuse the resolved commit with zero GitHub requests.
+- Repository and commit lookups are revalidated with ETags. GitHub answers `304 Not Modified` without a body; its [conditional request guidance](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api#use-conditional-requests-if-appropriate) says such responses do not count against the primary limit for authorized requests. This was not measured for anonymous requests.
+- Trees and blobs are addressed by SHA and never change, so they are kept in a bounded in-process cache (16 MB). A new commit only downloads changed files; identical files are fetched once.
+- Each scan reuses one HTTPS connection.
+- The last `x-ratelimit-remaining`/`x-ratelimit-reset` headers are remembered. A scan that cannot finish within the remaining budget is refused before it spends requests, and the message says when to retry. Results are never cached partially for lack of budget.
+- A cached report for a commit still costs zero file requests; reading reports and exports never calls GitHub.
+
+The cache is per process and is lost on restart. Never rotate tokens, IPs or accounts to get around a limit.
+
+Optional, free: create a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with **Public repositories (read-only)** access and no extra permissions, and put it in `GITHUB_TOKEN`. Authenticated requests get GitHub's standard authenticated allowance. The token is only sent to `api.github.com` (redirects are not followed) and never appears in URLs, logs or `/api/config`. Leave it empty for local fixtures and routine checks.
+
 ## Guard behavior and limits
 
 - Global kill switch: `AI_ENABLED=false` immediately disables new model calls after restart.

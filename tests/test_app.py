@@ -814,3 +814,129 @@ def test_retry_details_and_dates():
         )
         == datetime(2026, 11, 20, 22, tzinfo=timezone.utc).timestamp()
     )
+
+
+def github_mock(monkeypatch, handler, keep_cache=False):
+    """Route scanner GitHub calls to an in-process handler; no network."""
+    import httpx
+
+    if not keep_cache:
+        scanner.reset_github_state()
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    seen = []
+
+    def record(request):
+        seen.append(request)
+        return handler(request)
+
+    monkeypatch.setattr(
+        scanner,
+        "_new_client",
+        lambda: httpx.AsyncClient(transport=httpx.MockTransport(record)),
+    )
+    return seen
+
+
+def fake_github(blobs, limits=None):
+    import base64 as b64
+
+    import httpx
+
+    def handler(request):
+        path = request.url.path
+        headers = {"etag": '"v1"', **(limits or {})}
+        if request.headers.get("if-none-match") == '"v1"':
+            return httpx.Response(304, headers=headers)
+        if path == "/repos/o/r":
+            body = {"private": False, "default_branch": "main"}
+        elif path == "/repos/o/r/commits/main":
+            body = {"sha": "c" * 40}
+        elif "/git/trees/" in path:
+            body = {
+                "truncated": False,
+                "tree": [
+                    {
+                        "path": name,
+                        "type": "blob",
+                        "mode": "100644",
+                        "sha": sha,
+                        "size": 10,
+                    }
+                    for name, sha in blobs.items()
+                ],
+            }
+        elif "/git/blobs/" in path:
+            sha = path.rsplit("/", 1)[1]
+            body = {"content": b64.b64encode(f"x = '{sha}'\n".encode()).decode()}
+        else:
+            return httpx.Response(404)
+        return httpx.Response(200, json=body, headers=headers)
+
+    return handler
+
+
+def test_github_resolve_memoized_then_revalidated(monkeypatch):
+    seen = github_mock(monkeypatch, fake_github({}))
+    assert asyncio.run(scanner.resolve("o/r")) == "c" * 40
+    assert asyncio.run(scanner.resolve("O/R")) == "c" * 40
+    assert len(seen) == 2
+    scanner.state.resolved.clear()
+    assert asyncio.run(scanner.resolve("o/r")) == "c" * 40
+    assert len(seen) == 4 and all(
+        r.headers["if-none-match"] == '"v1"' for r in seen[2:]
+    )
+    assert all("authorization" not in r.headers for r in seen)
+
+
+def test_github_blobs_reused_across_commits(monkeypatch):
+    seen = github_mock(monkeypatch, fake_github({"a.py": "1" * 40, "b.py": "2" * 40}))
+    files, coverage = asyncio.run(scanner.fetch_files("o/r", "d" * 40))
+    assert len(files) == 2 and coverage["inspected"] == 2 and len(seen) == 3
+    # Next commit changes one file: only that blob is requested.
+    seen = github_mock(
+        monkeypatch, fake_github({"a.py": "1" * 40, "b.py": "3" * 40}), keep_cache=True
+    )
+    files, _ = asyncio.run(scanner.fetch_files("o/r", "e" * 40))
+    assert len(files) == 2
+    assert [r.url.path.rsplit("/", 1)[1] for r in seen if "/blobs/" in r.url.path] == [
+        "3" * 40
+    ]
+    seen.clear()
+    asyncio.run(scanner.fetch_files("o/r", "e" * 40))
+    assert seen == []
+
+
+def test_github_rate_limit_stops_before_spending(monkeypatch):
+    reset = int(time.time()) + 600
+    limits = {"x-ratelimit-remaining": "2", "x-ratelimit-reset": str(reset)}
+    seen = github_mock(
+        monkeypatch, fake_github({f"{n}.py": f"{n}" * 40 for n in range(5)}, limits)
+    )
+    with pytest.raises(scanner.ScanError, match="Try again in about 10 minutes"):
+        asyncio.run(scanner.fetch_files("o/r", "d" * 40))
+    assert len(seen) == 1  # only the tree; no blobs started that could not finish
+
+    import httpx
+
+    def exhausted(request):
+        return httpx.Response(
+            403, headers={"x-ratelimit-remaining": "0", "x-ratelimit-reset": str(reset)}
+        )
+
+    seen = github_mock(monkeypatch, exhausted)
+    with pytest.raises(scanner.ScanError, match="limit is reached"):
+        asyncio.run(scanner.resolve("o/r"))
+    with pytest.raises(scanner.ScanError, match="too low"):
+        asyncio.run(scanner.resolve("x/y"))
+    assert len(seen) == 1
+
+
+def test_github_forbidden_and_token(monkeypatch):
+    import httpx
+
+    seen = github_mock(monkeypatch, lambda request: httpx.Response(403))
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    with pytest.raises(scanner.ScanError, match="refused access"):
+        asyncio.run(scanner.resolve("o/r"))
+    assert seen[0].headers["authorization"] == "Bearer test-token"
+    assert "test-token" not in str(seen[0].url)

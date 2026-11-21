@@ -242,6 +242,7 @@ form.field-form > .primary {
   font-weight: 400;
 }
 .field-error,
+.field-form .field-error,
 #form-error,
 #social-error {
   color: var(--danger);
@@ -249,8 +250,62 @@ form.field-form > .primary {
   margin: var(--s2) 0 0;
 }
 #form-error:empty,
-#social-error:empty {
+#social-error:empty,
+.form-status:empty {
   display: none;
+}
+.field-form .field-hint {
+  margin: 0 0 var(--s1);
+}
+.form-status,
+.field-form .form-status {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  margin: var(--s3) 0 0;
+}
+.form-status.is-error,
+.field-form .form-status.is-error {
+  color: var(--danger);
+  border-left: 3px solid var(--danger);
+  padding-left: var(--s3);
+}
+.field-form fieldset.choice {
+  border: 0;
+  margin: var(--s4) 0;
+  padding: 0;
+}
+.field-form fieldset.choice legend {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--s1);
+  padding: 0;
+}
+.field-form fieldset.choice .checkbox-row {
+  margin: var(--s2) 0;
+  min-height: var(--target);
+  align-items: center;
+}
+.field-form fieldset.choice .checkbox-row input {
+  margin-top: 0;
+}
+.consent-steps {
+  margin: var(--s3) 0;
+  padding-left: var(--s5);
+}
+.consent-steps li + li {
+  margin-top: var(--s1);
+}
+.consent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sign-in-hint {
+  margin: 0 0 var(--s4);
+}
+.report-reasons {
+  font-size: var(--text-sm);
+  margin: var(--s4) 0 var(--s1);
 }
 
 /* ---------- Primitives: notices ---------- */
