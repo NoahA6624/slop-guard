@@ -69,3 +69,11 @@ Before changing UI, read this document, `static/theme.css`, `PROJECT.md`, and ro
 For each UI change verify the affected routes, loading/empty/error/unavailable states, long text, keyboard focus, 200% text enlargement and 400% reflow, reduced motion, and forced colors as applicable. Check foreground/background contrast (4.5:1 for normal text; 3:1 for meaningful non-text boundaries). Confirm there are no unresolved CSS variables or hardcoded application colors outside the theme's documented SVG/metadata exceptions. Distinguish measured results from requirements still awaiting verification.
 
 A new theme does not fix existing JavaScript focus, announcement, or state-restoration defects. Track those separately rather than claiming CSS has resolved them.
+
+## Easter eggs
+
+Small, optional delights that never change meaning or block a task. Follow the rules in `AGENTS.md`. Current list:
+
+| Easter egg              | Trigger                                                                                                                                                        | Where                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Crooked Satirical thumb | Switching to Satirical: the thumb slides over, pauses, then its right corner drops and it rests tilted 3°. Reversed on the way back. Off under reduced motion. | `slideModeThumb()` in `static/app.js`; `.mode-thumb` in `static/style.css` |

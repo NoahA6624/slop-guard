@@ -138,3 +138,21 @@ Branch `feature/ui-06-fix-plan-export` from `dev` at `f2e6e7d`. Same fixture env
 - **Requests:** with the fixture quota set to exhausted, opening the plan, two tone switches, Share finding and Copy report link issued exactly one request (`GET /api/reports/local-fixture/plan`), with no scan or model calls.
 - **Phone layout:** at 320px the dialog fits (282px wide), the preview scrolls inside itself, and buttons are 44px or taller.
 - **Checks:** 45 pytest, `node --check` and Prettier passed. Screenshot: `after-ui-06/plan-dialog-390.jpg`.
+
+## Tone switch animation (2026-11-20)
+
+Branch `feature/tone-switch-animation` from `dev` at `48c8b6c`.
+
+- **Element:** the Serious/Satirical control has a real thumb element (`.mode-thumb`) in the same grid cell as the selected button, so it lines up exactly. It rests crooked on Satirical: rotated 3°, pivoting on its top-left corner so the right corner drops.
+- **Choreography (1s), played with the Web Animations API from `slideModeThumb()` after the re-render:**
+  - To Satirical: slide across with an ease-in-out (0–55%), hold (55–65%), then the corner drops with a small overshoot and settles at 3°.
+  - To Serious: the corner lifts (0–30%), a short hold, then it slides home.
+- **Why the rewrite:** the first version (a CSS transition on `::before`) relied on the browser noticing a style change straight after the re-render. The user saw no animation in their browser, so the motion is now played explicitly.
+- **Measured in headless Chrome (thumb offset and angle):**
+  - To Satirical: 6 → 28 → 61 → 82 → 89px over about 550ms, hold, then 0.3° → 1.7° → 3.8° → 3° by 1s.
+  - To Serious: 3° → 0° by about 300ms, then 81 → 47 → 23 → 10 → 3px by 1s.
+- **Reduced motion:** goes straight to the end state, with no animation.
+- **Forced colors:** the decorative thumb is hidden and the selected option keeps the system highlight.
+- **Unchanged:** focus, `aria-pressed`, the URL, and zero network requests.
+- **Layout:** no overflow at 320px on home and the report.
+- **Checks:** 45 pytest, `node --check` and Prettier passed.

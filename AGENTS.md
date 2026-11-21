@@ -15,3 +15,11 @@
 - Maintain 16px-equivalent body text, 14px-equivalent metadata, 44px control targets, visible keyboard focus, responsive reflow, reduced motion, and forced-color usability. Color must never be the only state indicator. WCAG 2.2 AA is the target; report actual checks without claiming unmeasured compliance.
 - Keep two independent scores, quota under Probabilistic AI Slop, commit-pinned evidence, stable finding links, Serious/Satirical state, and zero-call cached exports intact. Preserve existing public labels and approved UI naming when integrating branches.
 - Validate changed routes and error/empty/loading/unavailable states using credential-free local fixtures. Never use the real .env or production DB for design checks. Record verification and remaining behavioral issues.
+
+## Easter eggs
+
+- Add small, subtle easter eggs where they fit naturally, in the spirit of the Serious/Satirical switch (the thumb slides over, pauses, then drops one corner and rests crooked). Good candidates: hover or focus states, empty states, loading moments, and Satirical-only touches.
+- Keep them quiet and rare: no pop-ups, sounds, extra network calls, or anything that delays or blocks a task. Never put them in errors, privacy or consent flows, scores, evidence, or the Markdown fix-plan export.
+- Respect `prefers-reduced-motion` and `forced-colors`, keep them out of the accessibility tree unless they carry meaning, and keep interactive targets and focus behaviour unchanged.
+- Note each one in `docs/DESIGN_PRINCIPLES.md` (what triggers it and where it lives) so it is maintained rather than rediscovered.
+
