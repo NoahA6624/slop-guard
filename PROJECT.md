@@ -61,7 +61,7 @@ Show both scores, coverage, and the three most consequential findings first. Giv
 
 | Page | Build |
 | --- | --- |
-| **My Slop** | Owner-curated portfolio of AI-assisted projects with description, public repo, live or first-party hosted demo, optional scan, and a note about what was fixed or what the grader missed. Support adding entries through a simple content file or admin form. |
+| **Our Slop** | Team-curated portfolio of AI-assisted projects with description, public repo, live or first-party hosted demo, optional scan, and a note about what was fixed or what the grader missed. Support adding entries through a simple content file or admin form. |
 | **Community Slop** | Let users submit their project with context and an optional scan. Provide New and Top views and reversible up/down votes. Keep popularity visibly distinct from engineering scores. Running a scan alone never submits it to the feed. |
 | **Anti-Slop Library** | Searchable skills, tools, prompts, and workflows. Each entry explains the concrete failure it catches, when to use it, and where to find the original. Support submissions and reversible up/down votes. Seed a few verified resources, credit their authors, and link relevant entries from findings. An honest empty state is fine. |
 | **Slop Form** | Use this exact spelling for the forum. Support topics, replies, and links to projects, resources, scans, or individual findings. The action **Discuss this finding** starts a thread with its commit-pinned evidence attached. |
