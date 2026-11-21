@@ -108,3 +108,7 @@ Requested by the reviewer and the owner: simpler, less text, white background, n
 - "My Slop" renamed to "Our Slop" (nav, heading, title, PROJECT.md) because the project has multiple contributors. The empty state no longer mentions `content/portfolio.json`.
 - Local preview: the fixture's signed-in user was labelled "Local fixture member"; it is now "Test user", and the banner reads "Local preview · sample data and a test user · no live scans or AI calls". This only exists in `scripts/preview_fixture.py`.
 - Rechecked at 390 and 1440: white background, no overflow, no controls under 44px, titles, `aria-current` and heading focus on every route; tone switch keeps focus and disclosures. Screenshots: `after-review-1/`.
+
+## Accent update (2026-11-20)
+
+Requested: a slight, original accent so text is not plain black. Ink is now midnight plum (`#1c1633`) and the single accent is grader violet (`#5b2ee0`), used for links, focus, the current page, selected tone and sort controls, the "your AI slop." half of the slogan, the logo check, the linked-finding marker and text selection. Scores, warnings and errors stay neutral or keep their status colours. Contrast is in `docs/DESIGN_VERIFICATION.md`.

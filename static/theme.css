@@ -6,25 +6,26 @@
   /* Surfaces: plain white, with one light grey for grouped areas. */
   --canvas: #ffffff;
   --surface: #ffffff;
-  --sunken: #f4f5f7;
-  --code-bg: #f6f7f9;
-  --accent-soft: #eef2fd;
+  --sunken: #f5f4f8;
+  --code-bg: #f7f6fa;
+  --accent-soft: #f1edff;
 
-  /* Text */
-  --ink: #111418;
-  --ink-2: #5a6169;
+  /* Text: midnight plum rather than flat black. */
+  --ink: #1c1633;
+  --ink-2: #5d5873;
 
   /* Lines */
-  --line: #e3e6ea;
-  --line-strong: #858c96;
+  --line: #e6e3ee;
+  --line-strong: #8a8599;
 
-  /* Actions. Primary buttons are ink; the one accent marks links and focus. */
-  --primary: #111418;
-  --primary-hover: #2d333b;
+  /* Actions. Primary buttons are ink; grader violet marks links, focus,
+     the current page, and a few signature moments. */
+  --primary: #1c1633;
+  --primary-hover: #2e2650;
   --on-primary: #ffffff;
-  --accent: #1f4fd1;
-  --accent-hover: #173da6;
-  --focus: #1f4fd1;
+  --accent: #5b2ee0;
+  --accent-hover: #4520b8;
+  --focus: #5b2ee0;
 
   /* States, always paired with text. */
   --danger: #b42318;
@@ -32,9 +33,9 @@
   --warn-ink: #7a4d0b;
   --warn-bg: #fff6e0;
   --warn-line: #f0d9a8;
-  --badge-ink: #3d434b;
-  --badge-bg: #f1f2f4;
-  --scrim: rgb(17 20 24 / 45%);
+  --badge-ink: #403a55;
+  --badge-bg: #f2f0f7;
+  --scrim: rgb(28 22 51 / 45%);
 
   /* Type */
   --font-ui:
@@ -70,6 +71,6 @@
   --gutter: clamp(1rem, 4vw, 2.5rem);
   --leading-body: 1.6;
   --leading-code: 1.8;
-  --shadow-color: rgb(17 20 24 / 8%);
+  --shadow-color: rgb(28 22 51 / 10%);
   color-scheme: light;
 }

@@ -20,19 +20,20 @@ WCAG relative luminance, rounded to two decimals.
 
 | Pair                               | Ratio   |
 | ---------------------------------- | ------- |
-| Ink / white                        | 18.47:1 |
-| Secondary ink / white              | 6.27:1  |
-| Secondary ink / subtle surface     | 5.75:1  |
-| Secondary ink / code surface       | 5.85:1  |
-| Accent / white                     | 6.78:1  |
-| Accent / accent surface            | 6.06:1  |
-| White / primary action             | 18.47:1 |
-| White / primary hover              | 12.74:1 |
+| Ink (midnight plum) / white        | 17.33:1 |
+| Secondary ink / white              | 6.75:1  |
+| Secondary ink / subtle surface     | 6.17:1  |
+| Secondary ink / code surface       | 6.28:1  |
+| Accent (grader violet) / white     | 7.21:1  |
+| Accent / subtle surface            | 6.59:1  |
+| Accent / accent surface            | 6.28:1  |
+| White / primary action             | 17.33:1 |
+| White / primary hover              | 13.91:1 |
 | Error / error surface              | 6.05:1  |
 | Caution / caution surface          | 6.74:1  |
-| Neutral badge text / badge surface | 8.92:1  |
-| Control boundary / white           | 3.39:1  |
-| Focus / white                      | 6.78:1  |
+| Neutral badge text / badge surface | 9.51:1  |
+| Control boundary / white           | 3.56:1  |
+| Focus / white                      | 7.21:1  |
 
 Calculated values do not by themselves establish WCAG conformance.
 

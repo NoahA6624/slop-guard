@@ -6,7 +6,7 @@ Slop Guard design direction · 20 November 2026
 
 A finding should attract attention in proportion to its engineering consequence and the evidence supporting it. A score, an unavailable review, and a popularity vote represent different kinds of information; their presentation must make those distinctions easy to understand. Reduce the effort between seeing a claim, inspecting its source, and choosing a useful next action.
 
-Quiet Evidence is this project's synthesis of established practices, not a claim of a newly proven scientific law. The visual character is an open, white workspace with dark type, blue navigation, clear source excerpts, and restrained status messages. Humor belongs in the wording of the selected mode. It must never change the apparent reliability of a finding.
+Quiet Evidence is this project's synthesis of established practices, not a claim of a newly proven scientific law. The visual character is an open, white workspace with midnight-plum type, grader-violet links and highlights, clear source excerpts, and restrained status messages. Humor belongs in the wording of the selected mode. It must never change the apparent reliability of a finding.
 
 ## Research and decisions
 
@@ -18,7 +18,7 @@ These references were consulted on 20 November 2026. They span human–computer 
 | Perception: [Gestalt proximity](https://www.nngroup.com/articles/gestalt-proximity/)                                                        | Spatial grouping communicates relationships.                                                       | Keep a claim, provenance, consequence, and fix together; use larger gaps between unrelated findings.                                                           |
 | Editorial and visual hierarchy: [NN/g visual principles](https://www.nngroup.com/articles/principles-visual-design/)                        | Scale, contrast, and grouping direct attention.                                                    | A short title, readable body, quiet metadata, and code in a consistent monospace face. Avoid a page of equally loud cards.                                     |
 | Industrial design: [Dieter Rams, via Vitsœ](https://www.vitsoe.com/us/about/good-design)                                                    | Useful, understandable, honest, restrained products can remain useful over time.                   | No fake activity, theatrical terminals, ornamental gradients, or claims of certainty unsupported by the scan.                                                  |
-| Service design: [GOV.UK color roles](https://design-system.service.gov.uk/styles/colour/)                                                   | Functional color roles provide consistent meaning.                                                 | Blue always means interaction or focus; amber means caution; red means an error. No arbitrary palette per route.                                               |
+| Service design: [GOV.UK color roles](https://design-system.service.gov.uk/styles/colour/)                                                   | Functional color roles provide consistent meaning.                                                 | Violet always means interaction, focus, or the current place; amber means caution; red means an error. No arbitrary palette per route.                         |
 | Information design: [ONS uncertainty guidance](https://service-manual.ons.gov.uk/data-visualisation/guidance/showing-uncertainty-in-charts) | Decide whether an uncertain estimate can support a meaningful comparison.                          | Keep coverage and uncertainty beside results. An unavailable score is unavailable, never zero. Avoid probability-like gauges for uncalibrated model judgments. |
 | Inclusive interaction: [WCAG 2.2](https://www.w3.org/TR/WCAG22/)                                                                            | Contrast, reflow, keyboard access, and target sizing are testable requirements.                    | Target WCAG 2.2 AA. Use 44px controls as a project default, above the AA 24px minimum with its exceptions. Preserve visible focus and semantic controls.       |
 | Systems engineering: [W3C Design Tokens Community Group](https://www.w3.org/community/design-tokens/)                                       | Reusable named decisions support consistency across consumers.                                     | CSS custom properties are the single visual source of truth for this buildless web app. No token-generation toolchain is needed.                               |
@@ -30,23 +30,23 @@ These references were consulted on 20 November 2026. They span human–computer 
 
 Do not introduce route-local palettes, copies of `:root` tokens, remote font requests, or inline visual styles. Use semantic names such as `--ink-2` and `--danger`, not hue names such as `--grey-600`. Extend an existing role only when it expresses the same meaning. Add a new role when its meaning differs, and document its foreground/background pair here. Pure geometric values such as zero, one-pixel borders, proportions, and viewport breakpoints may stay in component CSS. Legacy geometry is retained where changing it would require a separate layout redesign.
 
-| Role             | Value                           | Use                                                             |
-| ---------------- | ------------------------------- | --------------------------------------------------------------- |
-| Canvas / surface | `#ffffff`                       | Page and raised reading surfaces                                |
-| Ink              | `#111418`                       | Main text, score values, primary actions                        |
-| Secondary ink    | `#5a6169`                       | Metadata, descriptions, placeholder and disabled text           |
-| Accent / focus   | `#1f4fd1`                       | Underlined links, active controls, keyboard outline             |
-| Accent hover     | `#173da6`                       | Hover on links                                                  |
-| Subtle surface   | `#f4f5f7`                       | Grouped controls and disabled surfaces                          |
-| Code surface     | `#f6f7f9`                       | Source evidence and exported plan preview                       |
-| Accent surface   | `#eef2fd`                       | Linked finding or informative notice                            |
-| Divider          | `#e3e6ea`                       | Decorative section separation only                              |
-| Control boundary | `#858c96`                       | Inputs and controls that need a visible boundary                |
-| Error            | `#b42318` on `#fef3f2` or white | Failed action, invalid value; include a textual explanation     |
-| Caution          | `#7a4d0b` on `#fff6e0`          | Fixture identity, limitations, warnings                         |
-| Neutral badge    | `#3d434b` on `#f1f2f4`          | Provenance and categories, never an unsupported quality verdict |
+| Role                           | Value                           | Use                                                                                    |
+| ------------------------------ | ------------------------------- | -------------------------------------------------------------------------------------- |
+| Canvas / surface               | `#ffffff`                       | Page and raised reading surfaces                                                       |
+| Ink (midnight plum)            | `#1c1633`                       | Main text, score values, primary actions                                               |
+| Secondary ink                  | `#5d5873`                       | Metadata, descriptions, placeholder and disabled text                                  |
+| Accent (grader violet) / focus | `#5b2ee0`                       | Links, current page, selected controls, keyboard outline, slogan highlight, logo check |
+| Accent hover                   | `#4520b8`                       | Hover on links                                                                         |
+| Subtle surface                 | `#f5f4f8`                       | Grouped controls and disabled surfaces                                                 |
+| Code surface                   | `#f7f6fa`                       | Source evidence and exported plan preview                                              |
+| Accent surface                 | `#f1edff`                       | Linked finding or informative notice                                                   |
+| Divider                        | `#e6e3ee`                       | Decorative section separation only                                                     |
+| Control boundary               | `#8a8599`                       | Inputs and controls that need a visible boundary                                       |
+| Error                          | `#b42318` on `#fef3f2` or white | Failed action, invalid value; include a textual explanation                            |
+| Caution                        | `#7a4d0b` on `#fff6e0`          | Fixture identity, limitations, warnings                                                |
+| Neutral badge                  | `#403a55` on `#f2f0f7`          | Provenance and categories, never an unsupported quality verdict                        |
 
-White text belongs on the ink primary button. Secondary buttons use ink on white. Primary hover uses `#2d333b`. Do not use pale dividers as the only boundary of an input. The light warning border is decorative; warning text communicates the message. Scores stay neutral: no red-to-green spectrum implying a clean bill of health. There is no green success role in this theme; success uses explicit confirmation text.
+The ink is a deep plum rather than flat black, and grader violet is the one accent: it marks links, focus, the current page, selected controls, the second half of the slogan, and the logo check. Use it sparingly; never on scores, warnings, or errors. White text belongs on the ink primary button. Secondary buttons use ink on white. Primary hover uses `#2e2650`. Do not use pale dividers as the only boundary of an input. The light warning border is decorative; warning text communicates the message. Scores stay neutral: no red-to-green spectrum implying a clean bill of health. There is no green success role in this theme; success uses explicit confirmation text.
 
 The favicon is a standalone SVG and cannot inherit the page's custom properties. Its white and ink fills intentionally mirror the theme; update it and the browser theme-color metadata when those source roles change.
 
