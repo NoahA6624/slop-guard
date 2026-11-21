@@ -974,6 +974,13 @@ async function route({ focus = false } = {}) {
   titleOverride = null;
   setMenu(false);
   markRoute();
+  // Say so when a page takes a moment; fast loads never flash it.
+  const main = $("#main");
+  main.setAttribute("aria-busy", "true");
+  const loading = setTimeout(() => {
+    $("#view").innerHTML =
+      '<div class="page"><p class="page-loading" role="status">Loading…</p></div>';
+  }, 300);
   try {
     if (path.startsWith("/reports/")) {
       report = await api("/reports/" + path.split("/")[2]);
@@ -989,6 +996,8 @@ async function route({ focus = false } = {}) {
     $("#view").innerHTML =
       `<div class="page"><div class="empty"><h1>That didn’t load.</h1><p>${esc(e.message)}</p><a class="secondary" href="/">Back to the grader</a></div></div>`;
   }
+  clearTimeout(loading);
+  main.removeAttribute("aria-busy");
   markRoute();
   if (focus) {
     const heading = $("#view h1");

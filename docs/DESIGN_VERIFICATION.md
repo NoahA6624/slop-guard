@@ -68,3 +68,54 @@ Verified 20 November 2026 in the built-in Chromium pane against the local fixtur
 - At 375px the consent dialog had no document or dialog overflow; error text computes to the danger color.
 
 Not covered: a real Google sign-in, screen readers, forced colors for the new form states, and whether a real mouse click moves focus back to the report button in Safari. These remain UI-09 work.
+
+## UI-09: accessibility, responsive states and journeys
+
+Run on 21 November 2026 on `dev` (`ba6bc98`) plus the UI-09 fixes. macOS, Python 3.14.6, Node 24.18.0, headless Google Chrome through Playwright, against `scripts/preview_fixture.py --quota-demo` (temporary DB, providers disabled, empty worktree `.env`). The script is `docs/ui-audit/ui-09/audit.cjs`. It aborts any request that leaves loopback, and none did. Per-check results are in `results.json` and screenshots are in the same folder.
+
+- `.venv/bin/python -m pytest -q`: 49 passed. `node --check static/app.js` and Prettier: passed.
+- Audit: 115 of 115 checks passed after two fixes. The first run failed 5:
+  - Finding badges were 13px, below the 14px metadata minimum. They now use `--text-sm`.
+  - While a report or list was loading, the view stayed blank. After 300ms it now shows "Loading…" in a status region, and `main` has `aria-busy` while loading.
+- Layout: eight routes at 320, 390, 768 and 1440px, with no document overflow, no visible control under 44px tall (inline text links excepted), every control named, one `h1`, and no text under 14px. The Fix My AI Slop dialog fits at 390, 768 and 1440px. Screenshots: home, report and community at 390×844, 768×1024 and 1440×900, plus the dialog at each width.
+- Zoom, approximated as the equivalent CSS viewport: 720×450 for 200% of 1440×900, and 320×256 for 400% of 1280×1024. All eight routes had no horizontal overflow. This is not a real browser-zoom test.
+- Code-only overflow: a 420-character evidence line and a long path scroll inside the evidence block only, with no document overflow at 390px.
+- States (stubbed report responses):
+  - Empty findings: honest message, and export disabled with a note.
+  - Partial coverage: "1 of 40 … (partial coverage)".
+  - Insufficient coverage: "—" plus a label.
+  - Unknown eligible total.
+  - Not reviewed.
+  - Model-reviewed score next to an unchanged deterministic score.
+  - Missing report (404), report network failure, community 503, and slow-loading report.
+- Quota: available, cooldown, exhausted, unknown and disabled.
+  - On home, fresh AI is unchecked and disabled in every state except available, and deterministic grading stays enabled.
+  - On reports, the quota line stays inside Probabilistic AI Slop.
+- Keyboard:
+  - Skip link moves focus to main.
+  - The Menu opens with Enter, Tab enters the nav, and Escape closes it and returns focus.
+  - A route change focuses the `h1` and sets `aria-current` and the page title.
+  - The finding's More disclosure opens with Enter.
+  - The tone switch keeps focus, the open disclosure and `aria-pressed`.
+  - The plan dialog is named, focuses Copy and keeps Tab inside. Escape returns focus to Fix My AI Slop.
+  - Empty form submit links errors and focuses the first field.
+  - Votes toggle `aria-pressed` and keep focus.
+  - The focus outline is visible.
+- Accessibility tree (Playwright ARIA snapshots, saved as `aria-*.yml`): every route exposes banner, navigation, main and contentinfo, and heading levels never skip. This is a programmatic check, not a screen-reader test.
+- Motion and forced colors: under reduced motion the tone switch runs no animation. Under `forced-colors: active`, contribution form errors keep their text and the inputs keep borders (`forced-colors-form-errors-390.png`).
+- Journey: scan → evidence → tone → copy finding link → open deep link → copy and download plan → discuss finding → topic → back to finding → vote and unvote.
+  - Scan (stubbed `/api/scans`, one request) → report with focus on the `h1`.
+  - Evidence is visible with a commit-pinned source link.
+  - The tone switch made zero requests.
+  - The finding link copies, and the deep link focuses the exact finding.
+  - Copied and downloaded `SLOP_FIX_PLAN.md` are identical. Export requested only `/plan`, with no scan or model call.
+  - The new topic carries the commit-pinned evidence, and "Open exact finding" focuses it.
+  - Voting and unvoting work.
+  - A scan network error keeps the input and offers Try again, and a branch link is rejected inline.
+
+### Not verified
+
+- Real screen readers (VoiceOver, NVDA, JAWS, TalkBack). The ARIA snapshots show names and structure only, not how announcements sound.
+- Real browser zoom, Safari and Firefox, Windows High Contrast on hardware, and touch devices.
+- Real Google sign-in and live GitHub scans (the scan is stubbed here).
+- WCAG 2.2 AA conformance as a whole. These checks cover the listed criteria only.
