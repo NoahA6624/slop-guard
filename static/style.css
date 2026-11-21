@@ -727,7 +727,6 @@ footer a:hover {
 /* ---------- Tone switch ---------- */
 
 .mode {
-  --mode-ease: cubic-bezier(0.3, 1.35, 0.5, 1);
   position: relative;
   isolation: isolate;
   display: inline-grid;
@@ -738,24 +737,23 @@ footer a:hover {
   border-radius: var(--radius);
   background: var(--sunken);
 }
-/* The sliding thumb sits behind the selected option. */
-.mode::before {
-  content: "";
-  position: absolute;
+/* The thumb sits behind the selected option; on Satirical it rests
+   crooked, pivoting on its top-left corner. app.js animates the move. */
+.mode-thumb {
+  grid-row: 1;
+  grid-column: 1;
   z-index: -1;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc(50% - 3px);
   border-radius: var(--radius-sm);
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--accent);
-  transition: transform 260ms var(--mode-ease);
+  transform-origin: top left;
 }
-.mode[data-current="satirical"]::before {
-  transform: translateX(calc(100% + 2px)) rotate(-1.5deg);
+.mode[data-current="satirical"] .mode-thumb {
+  grid-column: 2;
+  transform: rotate(3deg);
 }
 .mode button {
+  grid-row: 1;
   min-height: var(--target);
   min-width: var(--target);
   padding: 0 var(--s4);
@@ -765,7 +763,13 @@ footer a:hover {
   color: var(--ink-2);
   font-size: var(--text-sm);
   font-weight: 600;
-  transition: color 200ms ease;
+  transition: color 400ms ease;
+}
+.mode button[data-mode="serious"] {
+  grid-column: 1;
+}
+.mode button[data-mode="satirical"] {
+  grid-column: 2;
 }
 .mode button:hover {
   color: var(--ink);
@@ -1298,6 +1302,9 @@ footer a:hover {
   }
 }
 @media (forced-colors: active) {
+  .mode-thumb {
+    display: none;
+  }
   .primary,
   .secondary,
   .tabs button,

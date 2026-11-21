@@ -81,14 +81,52 @@ $("#modal").addEventListener("click", (e) => {
   if (e.target === $("#modal")) $("#modal").close();
 });
 function modeControl() {
-  return `<div><div class="mode" role="group" aria-label="Report tone" data-current="${mode}"><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div></div>`;
+  return `<div><div class="mode" role="group" aria-label="Report tone" data-current="${mode}"><span class="mode-thumb" aria-hidden="true"></span><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div></div>`;
 }
+// Tone switch choreography (1s): to Satirical the thumb slides over,
+// pauses, then its right corner drops so it rests crooked. Back to
+// Serious the corner lifts first, then it slides home. Uses the Web
+// Animations API so it plays even though the view was just re-rendered.
+const TILT = 3;
 function slideModeThumb(from, to) {
-  if (from === to) return;
-  document.querySelectorAll("#view .mode").forEach((el) => {
-    el.dataset.current = from;
-    el.getBoundingClientRect(); // commit the starting position
-    el.dataset.current = to;
+  if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches)
+    return;
+  document.querySelectorAll("#view .mode").forEach((group) => {
+    const thumb = group.querySelector(".mode-thumb");
+    const [serious, satirical] = group.querySelectorAll("button");
+    if (!thumb?.animate || !serious || !satirical) return;
+    const dx = satirical.offsetLeft - serious.offsetLeft;
+    const at = (x, deg) => ({
+      transform: `translateX(${x}px) rotate(${deg}deg)`,
+    });
+    const frames =
+      to === "satirical"
+        ? [
+            {
+              ...at(-dx, 0),
+              offset: 0,
+              easing: "cubic-bezier(0.45, 0, 0.25, 1)",
+            },
+            { ...at(0, 0), offset: 0.55 },
+            {
+              ...at(0, 0),
+              offset: 0.65,
+              easing: "cubic-bezier(0.55, 0, 0.9, 0.4)",
+            },
+            { ...at(0, TILT + 1.5), offset: 0.85, easing: "ease-out" },
+            { ...at(0, TILT), offset: 1 },
+          ]
+        : [
+            { ...at(dx, TILT), offset: 0, easing: "ease-in-out" },
+            { ...at(dx, 0), offset: 0.3 },
+            {
+              ...at(dx, 0),
+              offset: 0.4,
+              easing: "cubic-bezier(0.45, 0, 0.25, 1)",
+            },
+            { ...at(0, 0), offset: 1 },
+          ];
+    thumb.animate(frames, { duration: 1000 });
   });
 }
 function changeMode(next) {

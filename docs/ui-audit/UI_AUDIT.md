@@ -143,10 +143,16 @@ Branch `feature/ui-06-fix-plan-export` from `dev` at `f2e6e7d`. Same fixture env
 
 Branch `feature/tone-switch-animation` from `dev` at `48c8b6c`.
 
-- **The thumb:** the Serious/Satirical control has a sliding thumb (a `::before` on `.mode`) driven by `data-current`. Because a tone change re-renders the view, `slideModeThumb()` sets the new control to the previous side, commits that layout, then switches it, so the thumb visibly slides instead of jumping.
-- **Motion:** about 260ms with a slight spring overshoot. On Satirical the thumb settles with a 1.5° tilt.
-- **Measured in headless Chrome:** toward Satirical, 0 → 44 → 82 → 92 (overshoot) → 89px by about 280ms; back to Serious, 89 → 29 → 8 → −3 → 0.
-- **Reduced motion:** switches instantly (existing global rule).
-- **Forced colors:** the selected option keeps the system highlight. Screenshots were inspected.
-- **Unchanged:** focus, `aria-pressed`, the URL, and zero network requests on tone change.
-- **Checks:** 45 pytest, `node --check` and Prettier passed. The in-app browser pane was hidden, which freezes its animation clock, so timing was measured with Playwright in headless Chrome against the loopback fixture only.
+- **Element:** the Serious/Satirical control has a real thumb element (`.mode-thumb`) in the same grid cell as the selected button, so it lines up exactly. It rests crooked on Satirical: rotated 3°, pivoting on its top-left corner so the right corner drops.
+- **Choreography (1s), played with the Web Animations API from `slideModeThumb()` after the re-render:**
+  - To Satirical: slide across with an ease-in-out (0–55%), hold (55–65%), then the corner drops with a small overshoot and settles at 3°.
+  - To Serious: the corner lifts (0–30%), a short hold, then it slides home.
+- **Why the rewrite:** the first version (a CSS transition on `::before`) relied on the browser noticing a style change straight after the re-render. The user saw no animation in their browser, so the motion is now played explicitly.
+- **Measured in headless Chrome (thumb offset and angle):**
+  - To Satirical: 6 → 28 → 61 → 82 → 89px over about 550ms, hold, then 0.3° → 1.7° → 3.8° → 3° by 1s.
+  - To Serious: 3° → 0° by about 300ms, then 81 → 47 → 23 → 10 → 3px by 1s.
+- **Reduced motion:** goes straight to the end state, with no animation.
+- **Forced colors:** the decorative thumb is hidden and the selected option keeps the system highlight.
+- **Unchanged:** focus, `aria-pressed`, the URL, and zero network requests.
+- **Layout:** no overflow at 320px on home and the report.
+- **Checks:** 45 pytest, `node --check` and Prettier passed.
