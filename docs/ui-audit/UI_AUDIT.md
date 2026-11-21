@@ -115,7 +115,7 @@ Requested: a slight, original accent so text is not plain black. Ink is now midn
 
 ## UI-05 results (2026-11-20)
 
-Branch `codex/ui-05-report-hierarchy` from `dev` at `b569d0a`. Same fixture environment.
+Branch `feature/ui-05-report-hierarchy` from `dev` at `b569d0a`. Same fixture environment.
 
 - **Finding layout:** each finding reads top to bottom: rule badge and confidence (with point contribution for deterministic rules), title, consequence, source excerpt, then Fix and Verify. Server order and the three-then-disclosure split are unchanged.
 - **Source excerpt:** a header shows the path and line range. Line numbers sit in a gutter that stays visible while long lines scroll sideways inside the excerpt. Numbers appear only when the excerpt is exactly the cited range, and they aren't selectable, so copying gives clean code.
@@ -124,3 +124,17 @@ Branch `codex/ui-05-report-hierarchy` from `dev` at `b569d0a`. Same fixture envi
 - **States:** checked separately: insufficient coverage, score 0 with no findings (Fix My AI Slop disabled), AI not reviewed, AI scored, AI 0, partial coverage, and an unknown eligible total ("N files inspected; eligible total unknown", which previously read "1 of unknown").
 - **Checks:** a 300-character line and a 160-character path caused no document overflow at 390px. No overflow or sub-44px controls on seven routes at 320, 390, 768 and 1440px with every disclosure open. 45 pytest, `node --check` and Prettier passed. Screenshots: `after-ui-05/`.
 - **Not done:** the optional "Jump to finding" index for long reports was left out to keep the report minimal; findings beyond three are one disclosure away.
+
+## UI-06 results (2026-11-20)
+
+Branch `feature/ui-06-fix-plan-export` from `dev` at `f2e6e7d`. Same fixture environment.
+
+- **Dialog content:** the plan dialog states the plan type, using the server's own rule (Cached model review when model findings exist, otherwise Deterministic checklist). It also shows the repository, short commit, item count and "no new AI call", above a scrollable, labelled preview.
+- **Focus:** the dialog is named "Fix My AI Slop" and focus starts on Copy Markdown. Escape and Close return focus to the Fix My AI Slop button. `modal()` now honours `autofocus` before falling back to the first control.
+- **Copy:** success and failure show inside the dialog. On failure, the plan stays open and selected, with the right ⌘C or Ctrl+C hint. Share finding and Copy report link fall back to a selected read-only field in a "Copy link" dialog.
+- **Download:** returns `SLOP_FIX_PLAN.md` as an attachment, byte-identical to the previewed plan for the same report.
+- **Plan load failure:** shows an alert in the dialog with Try again (focused), not a passing toast. Retry worked.
+- **No findings:** Fix My AI Slop is disabled and described by a visible note: "Nothing to export: this scan has no supported findings."
+- **Requests:** with the fixture quota set to exhausted, opening the plan, two tone switches, Share finding and Copy report link issued exactly one request (`GET /api/reports/local-fixture/plan`), with no scan or model calls.
+- **Phone layout:** at 320px the dialog fits (282px wide), the preview scrolls inside itself, and buttons are 44px or taller.
+- **Checks:** 45 pytest, `node --check` and Prettier passed. Screenshot: `after-ui-06/plan-dialog-390.jpg`.

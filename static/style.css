@@ -435,6 +435,30 @@ dialog::backdrop {
 .dialog-title {
   font-size: var(--text-h2);
 }
+.plan-meta {
+  margin: 0 0 var(--s3);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.plan-meta strong {
+  color: var(--ink);
+}
+.copy-status {
+  margin: var(--s3) 0 0;
+  font-size: var(--text-sm);
+}
+.copy-status:empty {
+  display: none;
+}
+.action-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.copy-field {
+  font-family: var(--font-code);
+}
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;

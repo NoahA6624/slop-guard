@@ -1,6 +1,6 @@
 # Quiet Evidence verification
 
-20 November 2026, on `codex/ui-sprint-foundation` (PR #13). This records checks of the integrated theme: `static/theme.css` from the local Quiet Evidence work, combined with the sprint's component CSS and JavaScript.
+20 November 2026, on the PR #13 branch (merged into `dev`). This records checks of the integrated theme: `static/theme.css` from the local Quiet Evidence work, combined with the sprint's component CSS and JavaScript.
 
 ## Setup
 
@@ -39,5 +39,19 @@ Calculated values do not by themselves establish WCAG conformance.
 
 ## Not yet verified
 
-- Forced-colors and reduced-motion rules on this branch: present but not emulated here. An earlier emulation ran against the pre-sprint stylesheet on local main, which does not cover this CSS.
+- Superseded: see "Forced colors and reduced motion" below.
 - Screen readers, real browser zoom to 400%, other browser engines, and complete authentication/loading/error journeys. These remain UI-09 work.
+
+## Forced colors and reduced motion
+
+Verified 20 November 2026 on `dev` plus UI-06, in headless Google Chrome via Playwright `emulateMedia`, at 390×844. Requests were restricted to the local fixture.
+
+- `forced-colors: active`:
+  - Keyboard focus shows a solid 3px outline.
+  - Primary and secondary buttons, inputs, and score boxes keep a 1px solid border.
+  - The selected tone button is outlined.
+  - No horizontal overflow.
+  - Screenshot inspection: every control stayed visible and distinguishable in system colours.
+- `prefers-reduced-motion: reduce`: smooth scrolling resolves to `auto` and the progress spinner has no animation. Focus and borders are unchanged.
+
+Not covered: Windows High Contrast themes on real hardware.
