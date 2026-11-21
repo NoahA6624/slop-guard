@@ -322,12 +322,30 @@ def plan(report_id: str, download: bool = False):
 
 
 @app.get("/api/content")
-def content(kind: str = "project", sort: str = "new", request: Request = None):
+def content(
+    kind: str = "project",
+    sort: str = "new",
+    parent: str | None = None,
+    request: Request = None,
+):
     account = user(request)
-    records = db.rows(
-        "SELECT c.*,u.name author,coalesce((SELECT sum(value) FROM votes WHERE item=c.id),0) votes,coalesce((SELECT value FROM votes WHERE item=c.id AND user_id=?),0) my_vote FROM contributions c JOIN users u ON u.id=c.owner WHERE c.hidden=0 AND c.kind=? ORDER BY c.created DESC LIMIT 100",
-        ((account or {}).get("id", ""), kind),
+    # Topics carry an exact count of visible replies, so the forum never
+    # has to count from the capped reply list. A topic page asks for its
+    # own replies with ?parent=, oldest first.
+    select = "SELECT c.*,u.name author,coalesce((SELECT sum(value) FROM votes WHERE item=c.id),0) votes,coalesce((SELECT value FROM votes WHERE item=c.id AND user_id=?),0) my_vote"
+    if kind == "topic":
+        select += ",(SELECT count(*) FROM contributions r WHERE r.parent=c.id AND r.kind='reply' AND r.hidden=0) replies"
+    query = (
+        select
+        + " FROM contributions c JOIN users u ON u.id=c.owner WHERE c.hidden=0 AND c.kind=?"
     )
+    params = [(account or {}).get("id", ""), kind]
+    if parent is not None:
+        query += " AND c.parent=? ORDER BY c.created ASC LIMIT 500"
+        params.append(parent)
+    else:
+        query += " ORDER BY c.created DESC LIMIT 100"
+    records = db.rows(query, tuple(params))
     if sort == "top":
         records.sort(key=lambda r: -r["votes"])
     return records
