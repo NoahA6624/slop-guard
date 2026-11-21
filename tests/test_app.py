@@ -940,3 +940,54 @@ def test_github_forbidden_and_token(monkeypatch):
         asyncio.run(scanner.resolve("o/r"))
     assert seen[0].headers["authorization"] == "Bearer test-token"
     assert "test-token" not in str(seen[0].url)
+
+
+def test_topic_reply_counts_are_exact_past_the_list_cap(client):
+    identify(client)
+    topics = [
+        client.post(
+            "/api/content",
+            json={
+                "kind": "topic",
+                "title": f"Topic {n}",
+                "body": "A question about a finding.",
+            },
+        ).json()["id"]
+        for n in range(2)
+    ]
+    # More replies than the 100-item list returns, all older than the
+    # second topic's single reply.
+    now = time.time()
+    with db.connect() as conn:
+        conn.executemany(
+            "INSERT INTO contributions (id,kind,owner,title,body,parent,created) VALUES (?,?,?,?,?,?,?)",
+            [
+                (
+                    f"r{n:03}",
+                    "reply",
+                    "owner",
+                    "Reply",
+                    "A useful reply.",
+                    topics[0],
+                    now - 1000 + n,
+                )
+                for n in range(120)
+            ],
+        )
+        conn.execute(
+            "INSERT INTO contributions (id,kind,owner,title,body,parent,created) VALUES (?,?,?,?,?,?,?)",
+            ("r-other", "reply", "owner", "Reply", "A useful reply.", topics[1], now),
+        )
+        conn.execute("UPDATE contributions SET hidden=1 WHERE id='r005'")
+    assert len(client.get("/api/content?kind=reply").json()) == 100
+    counts = {
+        t["id"]: t["replies"] for t in client.get("/api/content?kind=topic").json()
+    }
+    assert counts == {topics[0]: 119, topics[1]: 1}
+    own = client.get(f"/api/content?kind=reply&parent={topics[0]}").json()
+    assert len(own) == 119 and own[0]["id"] == "r000" and own[-1]["id"] == "r119"
+    assert "r005" not in {r["id"] for r in own}
+    assert [
+        r["id"]
+        for r in client.get(f"/api/content?kind=reply&parent={topics[1]}").json()
+    ] == ["r-other"]

@@ -847,20 +847,22 @@ async function library() {
   filter();
 }
 async function forum() {
-  const [topics, replies] = await Promise.all([
-    api("/content?kind=topic&sort=" + sort),
-    api("/content?kind=reply"),
-  ]);
   const selected = new URLSearchParams(location.search).get("topic");
-  currentItems = [...topics, ...replies];
+  // Reply counts come from the server; a topic page loads only its own
+  // replies (oldest first).
+  const [topics, own] = await Promise.all([
+    api("/content?kind=topic&sort=" + sort),
+    selected
+      ? api("/content?kind=reply&parent=" + encodeURIComponent(selected))
+      : [],
+  ]);
+  currentItems = [...topics, ...own];
   const topic = topics.find((x) => x.id === selected);
-  const count = (id) => replies.filter((x) => x.parent === id).length;
+  const count = (id) => topics.find((x) => x.id === id)?.replies ?? 0;
   let body;
   if (selected && topic) {
-    const own = replies
-      .filter((x) => x.parent === selected)
-      .sort((a, b) => a.created - b.created);
-    body = `<p><a href="/forum" class="inline-action">← All topics</a></p>${itemHtml(topic, { detail: true })}<section class="replies" aria-labelledby="replies-title"><h2 id="replies-title">${own.length} ${own.length === 1 ? "reply" : "replies"}</h2>${own.map((r) => itemHtml(r)).join("")}<button class="secondary" data-reply="${esc(selected)}">Add a reply</button></section>`;
+    const total = count(selected);
+    body = `<p><a href="/forum" class="inline-action">← All topics</a></p>${itemHtml(topic, { detail: true })}<section class="replies" aria-labelledby="replies-title"><h2 id="replies-title">${total} ${total === 1 ? "reply" : "replies"}</h2>${own.map((r) => itemHtml(r)).join("")}<button class="secondary" data-reply="${esc(selected)}">Add a reply</button></section>`;
   } else if (selected) {
     body =
       '<p><a href="/forum" class="inline-action">← All topics</a></p><div class="empty"><h2>Topic not found.</h2><p>It may have been removed by moderation.</p></div>';
