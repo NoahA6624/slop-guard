@@ -260,7 +260,7 @@ function quotaText() {
 function renderReport(focusHash = false) {
   const r = report;
   $("#view").innerHTML =
-    `<div class="page"><div class="page-head"><div><h1>${esc(r.repo)}</h1><div class="report-meta">Commit <code>${esc(r.sha.slice(0, 8))}</code> · ${new Date(r.created * 1000).toLocaleDateString()}</div></div>${modeControl()}</div><div class="scores"><section class="score-block"><h2>Deterministic Slop Score</h2><div class="score-number">${r.score ?? "—"}${r.score == null ? "" : " <small>/ 100</small>"}</div>${r.score == null ? '<div class="quota">Insufficient coverage</div>' : ""}</section><section class="score-block"><h2>Probabilistic AI Slop</h2><div class="quota" id="quota-line">${esc(quotaText())}</div><div class="score-number">${r.ai.score ?? "—"}${r.ai.score == null ? "" : " <small>/ 100</small>"}</div><div class="quota">${r.ai.score == null ? "Not reviewed" : "Model judgment"}</div></section></div><p class="score-note">Higher means more slop. ${r.coverage.inspected} of ${r.coverage.eligible ?? "unknown"} eligible files inspected${r.coverage.partial ? " (partial)" : ""}${r.languages.length ? " · " + esc(r.languages.join(", ")) : ""}.</p><div class="report-actions"><button class="primary" id="fix-plan" ${r.findings.length ? "" : 'disabled title="No actionable findings to export"'}>Fix My AI Slop</button><button class="secondary" id="roast">Roast My Repo</button><button class="secondary" id="share-report">Copy report link</button><a class="text-button small" href="/">Grade another repo</a></div><div class="section-title"><h2>${mode === "satirical" ? "The code can take it." : "What needs your attention"}</h2><span class="small muted">${r.findings.length} ${r.findings.length === 1 ? "finding" : "findings"}</span></div>${r.findings.length ? r.findings.map((f, i) => `${i === 3 ? '<details class="more-findings"><summary>Show remaining findings</summary>' : ""}${findingHtml(f)}${i === r.findings.length - 1 && i >= 3 ? "</details>" : ""}`).join("") : '<div class="empty"><h2>No supported findings in this snapshot.</h2><p>This does not prove the repo is defect-free. Check the inspected scope and skipped checks below.</p></div>'}<details class="details"><summary>Coverage, metrics, and skipped checks</summary><div class="metrics-grid"><div><strong>${r.metrics.lines}</strong><span>Lines inspected</span></div><div><strong>${r.metrics.average_file_length}</strong><span>Average lines per file</span></div><div><strong>${Math.round(r.metrics.comment_density * 100)}%</strong><span>Comment line density, headers excluded</span></div></div><p>${formatBytes(r.coverage.bytes)} inspected · rubric ${esc(r.rubric)}${r.cache_hit ? " · cached result" : ""}. File lengths: ${esc(r.metrics.file_lengths.join(", ") || "none")} lines.</p><ul>${[
+    `<div class="page"><div class="page-head"><div><h1>${esc(r.repo)}</h1><div class="report-meta">Commit <code>${esc(r.sha.slice(0, 8))}</code> · ${new Date(r.created * 1000).toLocaleDateString()}</div></div>${modeControl()}</div><div class="scores"><section class="score-block"><h2>Deterministic Slop Score</h2><div class="score-number">${r.score ?? "—"}${r.score == null ? "" : " <small>/ 100</small>"}</div>${r.score == null ? '<div class="quota">Insufficient coverage</div>' : ""}</section><section class="score-block"><h2>Probabilistic AI Slop</h2><div class="quota" id="quota-line">${esc(quotaText())}</div><div class="score-number">${r.ai.score ?? "—"}${r.ai.score == null ? "" : " <small>/ 100</small>"}</div><div class="quota">${r.ai.score == null ? "Not reviewed" : "Model judgment"}</div></section></div><p class="score-note">Higher means more slop. ${r.coverage.eligible == null ? `${r.coverage.inspected} ${r.coverage.inspected === 1 ? "file" : "files"} inspected; eligible total unknown` : `${r.coverage.inspected} of ${r.coverage.eligible} eligible files inspected`}${r.coverage.partial ? " (partial coverage)" : ""}${r.languages.length ? " · " + esc(r.languages.join(", ")) : ""}.</p><div class="report-actions"><button class="primary" id="fix-plan" ${r.findings.length ? "" : 'disabled title="No actionable findings to export"'}>Fix My AI Slop</button><button class="secondary" id="roast">Roast My Repo</button><button class="secondary" id="share-report">Copy report link</button><a class="text-button small" href="/">Grade another repo</a></div><div class="section-title"><h2>${mode === "satirical" ? "The code can take it." : "What needs your attention"}</h2><span class="small muted">${r.findings.length} ${r.findings.length === 1 ? "finding" : "findings"}</span></div>${r.findings.length ? r.findings.map((f, i) => `${i === 3 ? `<details class="more-findings"><summary>Show ${r.findings.length - 3} more ${r.findings.length - 3 === 1 ? "finding" : "findings"}</summary>` : ""}${findingHtml(f)}${i === r.findings.length - 1 && i >= 3 ? "</details>" : ""}`).join("") : '<div class="empty"><h2>No supported findings.</h2><p>That doesn’t prove the code is defect-free. See what was inspected below.</p></div>'}<details class="details"><summary>Coverage, metrics, and skipped checks</summary><div class="metrics-grid"><div><strong>${r.metrics.lines}</strong><span>Lines inspected</span></div><div><strong>${r.metrics.average_file_length}</strong><span>Average lines per file</span></div><div><strong>${Math.round(r.metrics.comment_density * 100)}%</strong><span>Comment line density, headers excluded</span></div></div><p>${formatBytes(r.coverage.bytes)} inspected · rubric ${esc(r.rubric)}${r.cache_hit ? " · cached result" : ""}. File lengths: ${esc(r.metrics.file_lengths.join(", ") || "none")} lines.</p><ul>${[
       r.ai.uncertainty,
       ...r.coverage.reasons,
       ...r.checks,
@@ -273,19 +273,45 @@ function renderReport(focusHash = false) {
   $("#fix-plan").onclick = openPlan;
   $("#roast").onclick = () => changeMode("satirical");
   $("#share-report").onclick = () => copy(location.href);
-  if (focusHash && location.hash) {
-    const target = document.getElementById(location.hash.slice(1));
-    if (target) {
-      target.closest("details")?.setAttribute("open", "");
-      requestAnimationFrame(() => target.scrollIntoView());
-    }
-  }
+  if (focusHash) revealFinding();
 }
 function formatBytes(n) {
   return n < 1024 ? `${n} B` : `${Math.round(n / 1024)} KB`;
 }
+function revealFinding() {
+  const target = location.hash.startsWith("#finding-")
+    ? document.getElementById(location.hash.slice(1))
+    : null;
+  if (!target) return false;
+  target.closest("details")?.setAttribute("open", "");
+  requestAnimationFrame(() => {
+    target.scrollIntoView();
+    target.focus({ preventScroll: true });
+  });
+  return true;
+}
+window.addEventListener("hashchange", () => {
+  if (report && location.pathname.startsWith("/reports/")) revealFinding();
+});
+function sourceHtml(f) {
+  const lines = String(f.evidence ?? "").split("\n");
+  // Number lines only when the excerpt is exactly the cited range.
+  const numbered = lines.length === f.end - f.start + 1;
+  const rows = lines
+    .map(
+      (line, i) =>
+        `<span class="src-line">${numbered ? `<span class="src-num" aria-hidden="true">${f.start + i}</span>` : ""}<code>${esc(line) || " "}</code></span>`,
+    )
+    .join("");
+  return `<figure class="source"><figcaption><span class="finding-path">${esc(f.path)}</span><span>lines ${f.start}${f.end !== f.start ? "–" + f.end : ""}</span></figcaption><pre class="evidence${numbered ? " numbered" : ""}" tabindex="0" role="region" aria-label="Evidence from ${esc(f.path)}">${rows}</pre></figure>`;
+}
 function findingHtml(f) {
-  return `<article class="finding" id="finding-${esc(f.id)}"><div class="finding-top"><span class="badge ${f.source !== "deterministic" ? "model" : ""}">${esc(f.source !== "deterministic" ? "MODEL REVIEW" : f.rule)}</span><span class="finding-path">${esc(f.path)}:${f.start}${f.end !== f.start ? "–" + f.end : ""}</span><span class="small muted">${esc(f.confidence)} confidence${f.source === "deterministic" ? ` · ${f.contribution} raw normalized points` : ""}</span></div><h3>${esc(mode === "satirical" ? f.roast : f.title)}</h3><p>${esc(f.consequence)}</p><pre class="evidence"><code>${esc(f.evidence)}</code></pre><p><strong>Fix:</strong> ${esc(f.fix)}</p><p><strong>Verify:</strong> ${esc(f.check)}</p><div class="finding-actions"><a href="${esc(f.url)}" target="_blank" rel="noopener">View source at commit</a><button class="text-button" data-share="${esc(f.id)}">Share finding</button><button class="text-button" data-discuss="${esc(f.id)}">Discuss this finding</button><button class="text-button" data-discuss="${esc(f.id)}">Bad call?</button><a href="/library">Find a useful tool</a><button class="text-button" data-social="${esc(f.id)}">Offer for a social roast</button></div></article>`;
+  const model = f.source !== "deterministic";
+  const points =
+    !model && f.contribution != null
+      ? ` · ${f.contribution} ${f.contribution === 1 ? "point" : "points"}`
+      : "";
+  return `<article class="finding" id="finding-${esc(f.id)}" tabindex="-1"><div class="finding-meta"><span class="badge${model ? " model" : ""}">${esc(model ? "Model review" : f.rule)}</span><span>${esc(f.confidence)} confidence${points}</span></div><h3>${esc(mode === "satirical" ? f.roast : f.title)}</h3><p>${esc(f.consequence)}</p>${sourceHtml(f)}<dl class="finding-fix"><dt>Fix</dt><dd>${esc(f.fix)}</dd><dt>Verify</dt><dd>${esc(f.check)}</dd></dl><div class="finding-actions"><a href="${esc(f.url)}" target="_blank" rel="noopener">View source at commit</a><button class="text-button" data-discuss="${esc(f.id)}">Discuss this finding</button><details class="more-actions"><summary>More</summary><div class="more-actions-list"><button class="text-button" data-share="${esc(f.id)}">Share finding</button><button class="text-button" data-discuss="${esc(f.id)}">Bad call?</button><a href="/library">Find a useful tool</a><button class="text-button" data-social="${esc(f.id)}">Offer for a social roast</button></div></details></div></article>`;
 }
 async function openPlan() {
   try {
