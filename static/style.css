@@ -1,74 +1,6 @@
-/* Slop Guard styles.
-   Tokens first; every colour, size and space below should come from them.
-   Contrast checks for each text/background pair are recorded in docs/ui-audit/TOKENS.md. */
-
-:root {
-  /* Surfaces: plain white, with one light grey for grouped areas. */
-  --canvas: #ffffff;
-  --surface: #ffffff;
-  --sunken: #f4f5f7;
-  --code-bg: #f6f7f9;
-  --accent-soft: #eef2fd;
-
-  /* Text */
-  --ink: #111418;
-  --ink-2: #5a6169;
-
-  /* Lines */
-  --line: #e3e6ea;
-  --line-strong: #858c96;
-
-  /* Actions. Primary buttons are ink; the one accent marks links and focus. */
-  --primary: #111418;
-  --primary-hover: #2d333b;
-  --on-primary: #ffffff;
-  --accent: #1f4fd1;
-  --accent-hover: #173da6;
-  --focus: #1f4fd1;
-
-  /* States, always paired with text. */
-  --danger: #b42318;
-  --danger-bg: #fef3f2;
-  --warn-ink: #7a4d0b;
-  --warn-bg: #fff6e0;
-  --warn-line: #f0d9a8;
-  --badge-ink: #3d434b;
-  --badge-bg: #f1f2f4;
-  --scrim: rgb(17 20 24 / 45%);
-
-  /* Type */
-  --font-ui:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  --font-code:
-    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --text-sm: 14px;
-  --text-base: 16px;
-  --text-lg: 18px;
-  --text-h3: 20px;
-  --text-h2: 24px;
-  --text-h1: 36px;
-  --text-display: 48px;
-  --text-code: 14px;
-
-  /* Space: 4 8 12 16 24 32 48 64 */
-  --s1: 4px;
-  --s2: 8px;
-  --s3: 12px;
-  --s4: 16px;
-  --s5: 24px;
-  --s6: 32px;
-  --s7: 48px;
-  --s8: 64px;
-
-  /* Shape and layout */
-  --radius: 6px;
-  --radius-sm: 4px;
-  --target: 44px;
-  --measure: 72ch;
-  --work: 1200px;
-  --gutter: 20px;
-}
+/* Slop Guard component styles.
+   Tokens live in theme.css (loaded first); see docs/DESIGN_PRINCIPLES.md.
+   This file owns component geometry and responsive composition only. */
 
 /* ---------- Base ---------- */
 
@@ -86,7 +18,7 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
-  font: var(--text-base) / 1.6 var(--font-ui);
+  font: var(--text-base) / var(--leading-body) var(--font-ui);
   overflow-wrap: break-word;
 }
 h1,
@@ -217,7 +149,7 @@ button {
   border: 0;
   background: transparent;
   color: var(--ink-2);
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 400;
 }
 .icon-button:hover {
@@ -375,7 +307,7 @@ form.field-form > .primary {
   border-radius: var(--radius-sm);
   background: var(--badge-bg);
   color: var(--badge-ink);
-  font: 600 13px/1.5 var(--font-code);
+  font: 600 0.8125rem/1.5 var(--font-code);
 }
 .badge.model {
   font-family: var(--font-ui);
@@ -391,7 +323,7 @@ form.field-form > .primary {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--ink);
-  font: var(--text-code) / 1.7 var(--font-code);
+  font: var(--text-code) / var(--leading-code) var(--font-code);
   white-space: pre;
   tab-size: 4;
 }
@@ -473,7 +405,7 @@ dialog {
   border-radius: var(--radius);
   background: var(--canvas);
   color: var(--ink);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 18%);
+  box-shadow: 0 12px 40px var(--shadow-color);
 }
 dialog::backdrop {
   background: var(--scrim);
@@ -516,7 +448,7 @@ dialog::backdrop {
   background: var(--ink);
   color: var(--surface);
   font-size: var(--text-sm);
-  box-shadow: 0 4px 20px rgb(0 0 0 / 20%);
+  box-shadow: 0 4px 20px var(--shadow-color);
   display: none;
 }
 
@@ -551,6 +483,7 @@ header {
 }
 .header-inner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--s5);
   max-width: var(--work);
@@ -564,7 +497,7 @@ header {
   gap: var(--s2);
   min-height: var(--target);
   color: var(--ink);
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 750;
   letter-spacing: -0.03em;
   text-decoration: none;
@@ -595,6 +528,7 @@ header {
 }
 .site-nav ul {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--s1);
   margin: 0;
@@ -645,6 +579,17 @@ main:focus {
   max-width: var(--work);
   margin: auto;
   padding: var(--s7) var(--gutter) var(--s8);
+}
+.page,
+footer {
+  overflow-wrap: anywhere;
+}
+.page-head > *,
+.score-block {
+  min-width: 0;
+}
+pre {
+  max-width: 100%;
 }
 .page h1:focus {
   outline: none;
@@ -902,7 +847,7 @@ footer a:hover {
   margin: 0;
   padding: var(--s4) var(--s5);
   overflow-x: auto;
-  font: var(--text-code) / 1.8 var(--font-code);
+  font: var(--text-code) / var(--leading-code) var(--font-code);
 }
 .example-verdict {
   padding: var(--s3) var(--s4);
@@ -949,7 +894,7 @@ footer a:hover {
 .score-number {
   margin-top: var(--s3);
   color: var(--ink);
-  font-size: 44px;
+  font-size: 2.75rem;
   font-weight: 650;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -1104,7 +1049,7 @@ footer a:hover {
 
 /* ---------- Responsive ---------- */
 
-@media (max-width: 899px) {
+@media (max-width: 56.1875em) {
   .menu-toggle {
     display: inline-flex;
     margin-left: auto;
@@ -1122,7 +1067,7 @@ footer a:hover {
     padding: var(--s2) var(--gutter) var(--s4);
     border-bottom: 1px solid var(--line);
     background: var(--canvas);
-    box-shadow: 0 8px 16px rgb(0 0 0 / 8%);
+    box-shadow: 0 8px 16px var(--shadow-color);
   }
   header.menu-open .site-nav {
     display: block;
@@ -1138,14 +1083,7 @@ footer a:hover {
     box-shadow: inset 3px 0 0 var(--ink);
   }
 }
-@media (max-width: 800px) {
-  :root {
-    --text-h1: 30px;
-    --text-display: 38px;
-    --text-h2: 22px;
-    --text-h3: 18px;
-    --gutter: 16px;
-  }
+@media (max-width: 50em) {
   .page {
     padding: var(--s5) var(--gutter) var(--s7);
   }
@@ -1169,14 +1107,14 @@ footer a:hover {
     width: 100%;
   }
   .score-number {
-    font-size: 36px;
+    font-size: 2.25rem;
   }
   .report-actions .primary,
   .report-actions .secondary {
     flex: 1 1 auto;
   }
   .metrics-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
   .prose table {
     display: block;
@@ -1187,8 +1125,9 @@ footer a:hover {
     padding: var(--s2);
   }
 }
-@media (max-width: 480px) {
+@media (max-width: 30em) {
   .scores {
+    grid-template-columns: 1fr;
     gap: var(--s3);
   }
   .score-block {
@@ -1229,5 +1168,15 @@ footer a:hover {
   }
   :focus-visible {
     outline: 3px solid Highlight;
+  }
+  input:not([type="checkbox"], [type="radio"]),
+  textarea,
+  select,
+  .score-block {
+    border: 1px solid ButtonText;
+  }
+  .finding:target {
+    outline: 2px solid Highlight;
+    box-shadow: none;
   }
 }

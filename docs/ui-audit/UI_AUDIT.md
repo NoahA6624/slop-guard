@@ -102,7 +102,7 @@ Same fixture environment. `/api/scans` was stubbed inside the page for failure a
 
 Requested by the reviewer and the owner: simpler, less text, white background, no green.
 
-- Palette: white surfaces, ink text and primary buttons, one blue accent for links and focus (see `TOKENS.md`). Rule and model badges are neutral.
+- Palette: white surfaces, ink text and primary buttons, one blue accent for links and focus (see `docs/DESIGN_PRINCIPLES.md`). Rule and model badges are neutral.
 - Scores: two boxes, each with a label and one number. The quota line stays directly under Probabilistic AI Slop. A single line beneath says "Higher means more slop" plus files inspected. The AI uncertainty note, size, rubric and cache state moved into "Coverage, metrics, and skipped checks". Size now shows bytes for small snapshots ("176 B", previously "0 KB").
 - Text removed: eyebrows on every page, the home "how it works" steps, example intro copy, "Same evidence. Different delivery.", footer taglines, and the "Find what's fragile…" line. Page intros cut to one short line; empty states shortened.
 - "My Slop" renamed to "Our Slop" (nav, heading, title, PROJECT.md) because the project has multiple contributors. The empty state no longer mentions `content/portfolio.json`.
