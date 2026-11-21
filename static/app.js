@@ -19,10 +19,19 @@ let config = {},
   plan = "",
   toastTimer;
 async function api(path, options = {}) {
-  const res = await fetch("/api" + path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let res;
+  try {
+    res = await fetch("/api" + path, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch {
+    const error = new Error(
+      "Couldn’t reach Slop Guard. Check your connection and try again.",
+    );
+    error.status = 0;
+    throw error;
+  }
   if (!res.ok) {
     let data;
     try {
@@ -30,11 +39,13 @@ async function api(path, options = {}) {
     } catch {
       data = { detail: "The request failed. Try again." };
     }
-    throw new Error(
+    const error = new Error(
       typeof data.detail === "string"
         ? data.detail
         : "Check the form fields and try again.",
     );
+    error.status = res.status;
+    throw error;
   }
   return res.headers.get("content-type")?.includes("application/json")
     ? res.json()
@@ -67,7 +78,7 @@ $("#modal").addEventListener("click", (e) => {
   if (e.target === $("#modal")) $("#modal").close();
 });
 function modeControl() {
-  return `<div><div class="mode" role="group" aria-label="Report tone"><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div><div class="mode-note">Same evidence. Different delivery.</div></div>`;
+  return `<div><div class="mode" role="group" aria-label="Report tone"><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div></div>`;
 }
 function changeMode(next) {
   mode = next;
@@ -90,47 +101,130 @@ function changeMode(next) {
   scrollTo(0, y);
   if (focused) $("#view " + focused)?.focus();
 }
+const SELF_REPO = "NoahA6624/slop-guard";
+const REPO_PATTERN = /^([A-Za-z0-9_.-]{1,100})\/([A-Za-z0-9_.-]{1,100})$/;
+// Accept the forms people paste and send the API one it supports
+// (owner/repo). Anything with extra path segments is rejected here with
+// the same guidance the server gives.
+function normalizeRepo(value) {
+  const cleaned = value
+    .trim()
+    .replace(/^(?:https?:\/\/)?(?:www\.)?github\.com\//i, "")
+    .replace(/\/+$/, "")
+    .replace(/\.git$/i, "");
+  const match = cleaned.match(REPO_PATTERN);
+  if (
+    !match ||
+    [".", ".."].includes(match[1]) ||
+    [".", ".."].includes(match[2])
+  )
+    return null;
+  return `${match[1]}/${match[2]}`;
+}
+let scanBusy = false;
 function home() {
   report = null;
+  const previous = {
+    repo: $("#repo")?.value ?? "",
+    ai: $("#include-ai") ? $("#include-ai").checked : null,
+    status: $("#scan-status")?.innerHTML ?? "",
+    error: $("#repo-error")?.textContent ?? "",
+  };
   $("#view").innerHTML =
-    `<div class="page"><section class="hero"><span class="eyebrow">A little less slop. A lot better code.</span><h1>My AI slop grades<span>your AI slop.</span></h1><p class="intro">An honest second look at your GitHub repo.<br>Find what’s fragile, see the evidence, and leave with a fix.</p>${modeControl()}</section><form class="scan-box" id="scan-form"><label for="repo">Your public GitHub repository</label><div class="input-group"><div class="repo-input"><span aria-hidden="true">⌘</span><input id="repo" name="repo" placeholder="github.com/you/your-project" required spellcheck="false" autocomplete="off" aria-describedby="repo-help"></div><button class="primary" id="grade">Grade my repo</button></div><div class="input-help" id="repo-help"><span>Public repos only. No sign-in. No code is ever run.</span><button type="button" class="text-button" id="self-scan">Grade Slop Guard itself</button></div><div id="scan-status" role="status" aria-live="polite"></div></form><section class="how" aria-label="How it works"><div><div class="step"><span class="step-num">1</span><h3>Drop in your repo</h3></div><p>We inspect a bounded snapshot.<br>Your code stays your code.</p></div><div><div class="step"><span class="step-num">2</span><h3>Get an honest read</h3></div><p>Two independent scores.<br>Every finding comes with receipts.</p></div><div><div class="step"><span class="step-num">3</span><h3>Make it better</h3></div><p>Take a focused Markdown fix plan<br>back to your coding agent.</p></div></section><section class="example-panel"><div class="example-intro"><span class="tiny-label">The kind of thing we catch · example</span><h2>Looks like a test.<br>Doesn’t test a thing.</h2><p>A green check is only useful when it can turn red.</p><a href="/methodology" class="small muted">See how grading works</a></div><div class="example-code"><div class="code-header"><span>tests/test_checkout.py</span><span>Illustrative fixture</span></div><pre>1  def test_checkout_succeeds():
-2      assert True</pre><div class="example-verdict">${mode === "satirical" ? "“This test has never doubted you.”" : "This test passes even if the feature is removed."}</div></div></section><p class="disclaimer">We grade observable code quality. We don’t guess who—or what—wrote it.</p></div>`;
-  $("#scan-form").onsubmit = submitScan;
-  $("#repo-help").insertAdjacentHTML(
-    "afterend",
-    `<div class="ai-option"><label for="include-ai"><input id="include-ai" type="checkbox" ${config.quota?.state === "available" ? "checked" : ""} aria-describedby="ai-availability">Include a fresh AI review</label><span id="ai-availability" role="status" aria-live="polite"></span></div>`,
-  );
+    `<div class="page home"><section class="home-entry" aria-labelledby="home-title"><h1 id="home-title">My AI slop grades <span>your AI slop.</span></h1><p class="intro">An honest second look at your public GitHub repo.</p><form class="scan-box" id="scan-form" novalidate><label for="repo">Public GitHub repository</label><div class="input-group"><input id="repo" name="repo" type="text" inputmode="url" placeholder="owner/repo or GitHub link" required spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="repo-help repo-error"><button class="primary" id="grade" type="submit">Grade my repo</button></div><p class="field-error" id="repo-error"></p><div class="input-help"><span id="repo-help">Public repos only. No sign-in. Your code is never run.</span><button type="button" class="text-button" id="self-scan">Grade Slop Guard itself</button></div><div class="ai-option"><label for="include-ai"><input id="include-ai" type="checkbox" aria-describedby="ai-availability">Include a fresh AI review</label><span id="ai-availability"></span><span class="visually-hidden" id="ai-announce" role="status"></span></div><div id="scan-status" role="status"></div></form><div class="tone-row"><span class="tone-label">Tone</span>${modeControl()}</div></section><section class="example-panel" aria-label="Example finding"><div class="example-code"><div class="code-header"><span>tests/test_checkout.py</span><span>Example</span></div><pre>def test_checkout_succeeds():
+    assert True</pre><div class="example-verdict">${mode === "satirical" ? "“This test has never doubted you.”" : "This test passes even if the feature is removed."}</div></div></section><p class="disclaimer">We grade observable code quality, not who or what wrote it.</p></div>`;
+  $("#repo").value = previous.repo;
+  if (previous.error) showRepoError(previous.error);
+  $("#scan-status").innerHTML = scanBusy ? "" : previous.status;
+  aiAnnounced = null;
+  $("#include-ai").checked = previous.ai ?? config.quota?.state === "available";
   updateAiControls();
+  setScanBusy(scanBusy);
+  $("#scan-form").onsubmit = submitScan;
+  $("#repo").addEventListener("input", () => {
+    if ($("#repo").getAttribute("aria-invalid")) showRepoError("");
+  });
   $("#self-scan").onclick = () => {
-    $("#repo").value = "NoahA6624/slop-guard";
+    $("#repo").value = SELF_REPO;
     $("#scan-form").requestSubmit();
   };
 }
+function showRepoError(message) {
+  const input = $("#repo");
+  $("#repo-error").textContent = message;
+  if (message) input.setAttribute("aria-invalid", "true");
+  else input.removeAttribute("aria-invalid");
+}
+function setScanBusy(busy) {
+  scanBusy = busy;
+  const form = $("#scan-form");
+  if (!form) return;
+  form.setAttribute("aria-busy", String(busy));
+  $("#grade").disabled = busy;
+  $("#grade").textContent = busy ? "Grading…" : "Grade my repo";
+  $("#self-scan").disabled = busy;
+}
+function scanFailure(error) {
+  if (error.status === 409)
+    return {
+      title: "Another scan is running.",
+      body: error.message,
+    };
+  if (error.status === 0)
+    return { title: "No connection.", body: error.message };
+  if (error.status >= 500)
+    return { title: "The scan didn’t finish.", body: error.message };
+  return { title: "We couldn’t grade that repository.", body: error.message };
+}
 async function submitScan(e) {
   e.preventDefault();
-  const button = $("#grade");
-  button.disabled = true;
+  if (scanBusy) return;
+  const raw = $("#repo").value;
+  if (!raw.trim()) {
+    showRepoError("Enter a repository, for example owner/repo.");
+    $("#repo").focus();
+    return;
+  }
+  const repo = normalizeRepo(raw);
+  if (!repo) {
+    showRepoError(
+      "Use owner/repo or https://github.com/owner/repo. Branch and file links aren’t supported.",
+    );
+    $("#repo").focus();
+    return;
+  }
+  showRepoError("");
+  setScanBusy(true);
   $("#scan-status").innerHTML =
-    '<div class="progress">Resolving the commit and inspecting selected files…</div>';
+    `<div class="progress">Grading ${esc(repo)}: resolving the commit and inspecting selected files. Larger repositories can take up to a minute.</div>`;
   try {
     const result = await api("/scans", {
       method: "POST",
       body: JSON.stringify({
-        repo: $("#repo").value.trim(),
+        repo,
         include_ai: Boolean(
           $("#include-ai")?.checked && !$("#include-ai").disabled,
         ),
       }),
     });
-    navigate(`/reports/${result.id}?mode=${mode}`, false);
+    setScanBusy(false);
+    if (location.pathname !== "/") return;
+    $("#scan-status").innerHTML = "";
     report = result;
+    navigate(`/reports/${result.id}?mode=${mode}`, false);
     renderReport();
-    await refreshConfig();
+    scrollTo(0, 0);
+    markRoute();
+    const heading = $("#view h1");
+    heading.tabIndex = -1;
+    heading.focus();
+    refreshConfig().catch(() => {});
   } catch (error) {
-    $("#scan-status").innerHTML =
-      `<p class="scan-error">${esc(error.message)}</p>`;
-  } finally {
-    if ($("#grade")) $("#grade").disabled = false;
+    setScanBusy(false);
+    const status = $("#scan-status");
+    if (!status) return;
+    const failure = scanFailure(error);
+    status.innerHTML = `<div class="notice-error" role="alert"><strong>${esc(failure.title)}</strong> ${esc(failure.body)} <span class="muted">Your entry is kept.</span><div class="error-actions"><button type="submit" class="secondary" id="retry-scan">Try again</button></div></div>`;
   }
 }
 function quotaText() {
@@ -165,9 +259,17 @@ function quotaText() {
 }
 function renderReport(focusHash = false) {
   const r = report;
-  const det = r.findings.filter((f) => f.source === "deterministic").length;
   $("#view").innerHTML =
-    `<div class="page"><div class="page-head"><div><span class="eyebrow">The repo report</span><h1>${esc(r.repo)}</h1><div class="report-meta">Commit <code>${esc(r.sha.slice(0, 8))}</code> · ${new Date(r.created * 1000).toLocaleDateString()} · Rubric ${esc(r.rubric)}${r.cache_hit ? " · Cached result" : ""}</div></div>${modeControl()}</div><div class="scores"><section class="score-block"><h2>Deterministic Slop Score</h2><div class="score-number">${r.score ?? "—"} <small>${r.score === null ? "insufficient coverage" : "/ 100"}</small></div><p class="score-description">Observable signals. Published rules. Higher means more slop.</p></section><section class="score-block"><h2>Probabilistic AI Slop</h2><div class="quota" id="quota-line">${esc(quotaText())}</div><div class="score-number">${r.ai.score ?? "—"} <small>${r.ai.score === null ? "not reviewed" : "/ 100"}</small></div><p class="score-description">${esc(r.ai.uncertainty)}</p></section></div><div class="coverage"><strong>${r.coverage.inspected} / ${r.coverage.eligible ?? "unknown"} eligible files inspected</strong><span>${esc(r.languages.join(" · ") || "No supported languages")}</span><span>${r.coverage.partial ? "Partial coverage" : "Bounded scan"} · ${Math.round(r.coverage.bytes / 1024)} KB</span></div><div class="report-actions"><button class="primary" id="fix-plan" ${r.findings.length ? "" : 'disabled title="No actionable findings to export"'}>Fix My AI Slop</button><button class="secondary" id="roast">Roast My Repo</button><button class="secondary" id="share-report">Copy report link</button><a class="text-button small" href="/">Grade another repo</a></div><div class="section-title"><h2>${mode === "satirical" ? "The code can take it." : "What needs your attention"}</h2><span class="small muted">${r.findings.length} findings · ${det} deterministic · evidence at ${esc(r.sha.slice(0, 8))}</span></div>${r.findings.length ? r.findings.map((f, i) => `${i === 3 ? '<details class="more-findings"><summary>Show remaining findings</summary>' : ""}${findingHtml(f)}${i === r.findings.length - 1 && i >= 3 ? "</details>" : ""}`).join("") : '<div class="empty"><h2>No supported findings in this snapshot.</h2><p>This does not prove the repo is defect-free. Check the inspected scope and skipped checks below.</p></div>'}<details class="details"><summary>Coverage, metrics, and skipped checks</summary><div class="metrics-grid"><div><strong>${r.metrics.lines}</strong><span>Lines inspected</span></div><div><strong>${r.metrics.average_file_length}</strong><span>Average lines per file</span></div><div><strong>${Math.round(r.metrics.comment_density * 100)}%</strong><span>Comment line density, headers excluded</span></div></div><p>File length distribution: ${esc(r.metrics.file_lengths.join(", ") || "No files")} lines.</p><ul>${[...r.coverage.reasons, ...r.checks].map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p>Comments carry zero points. Style signals are capped at 5 points. <a href="/methodology">Read the rubric.</a></p></details></div>`;
+    `<div class="page"><div class="page-head"><div><h1>${esc(r.repo)}</h1><div class="report-meta">Commit <code>${esc(r.sha.slice(0, 8))}</code> · ${new Date(r.created * 1000).toLocaleDateString()}</div></div>${modeControl()}</div><div class="scores"><section class="score-block"><h2>Deterministic Slop Score</h2><div class="score-number">${r.score ?? "—"}${r.score === null ? "" : " <small>/ 100</small>"}</div>${r.score === null ? '<div class="quota">Insufficient coverage</div>' : ""}</section><section class="score-block"><h2>Probabilistic AI Slop</h2><div class="quota" id="quota-line">${esc(quotaText())}</div><div class="score-number">${r.ai.score ?? "—"}${r.ai.score === null ? "" : " <small>/ 100</small>"}</div>${r.ai.score === null ? '<div class="quota">Not reviewed</div>' : ""}</section></div><p class="score-note">Higher means more slop. ${r.coverage.inspected} of ${r.coverage.eligible ?? "unknown"} eligible files inspected${r.coverage.partial ? " (partial)" : ""}${r.languages.length ? " · " + esc(r.languages.join(", ")) : ""}.</p><div class="report-actions"><button class="primary" id="fix-plan" ${r.findings.length ? "" : 'disabled title="No actionable findings to export"'}>Fix My AI Slop</button><button class="secondary" id="roast">Roast My Repo</button><button class="secondary" id="share-report">Copy report link</button><a class="text-button small" href="/">Grade another repo</a></div><div class="section-title"><h2>${mode === "satirical" ? "The code can take it." : "What needs your attention"}</h2><span class="small muted">${r.findings.length} ${r.findings.length === 1 ? "finding" : "findings"}</span></div>${r.findings.length ? r.findings.map((f, i) => `${i === 3 ? '<details class="more-findings"><summary>Show remaining findings</summary>' : ""}${findingHtml(f)}${i === r.findings.length - 1 && i >= 3 ? "</details>" : ""}`).join("") : '<div class="empty"><h2>No supported findings in this snapshot.</h2><p>This does not prove the repo is defect-free. Check the inspected scope and skipped checks below.</p></div>'}<details class="details"><summary>Coverage, metrics, and skipped checks</summary><div class="metrics-grid"><div><strong>${r.metrics.lines}</strong><span>Lines inspected</span></div><div><strong>${r.metrics.average_file_length}</strong><span>Average lines per file</span></div><div><strong>${Math.round(r.metrics.comment_density * 100)}%</strong><span>Comment line density, headers excluded</span></div></div><p>${formatBytes(r.coverage.bytes)} inspected · rubric ${esc(r.rubric)}${r.cache_hit ? " · cached result" : ""}. File lengths: ${esc(r.metrics.file_lengths.join(", ") || "none")} lines.</p><ul>${[
+      r.ai.uncertainty,
+      ...r.coverage.reasons,
+      ...r.checks,
+    ]
+      .filter(Boolean)
+      .map((x) => `<li>${esc(x)}</li>`)
+      .join(
+        "",
+      )}</ul><p><a href="/methodology">How grading works</a></p></details></div>`;
   $("#fix-plan").onclick = openPlan;
   $("#roast").onclick = () => changeMode("satirical");
   $("#share-report").onclick = () => copy(location.href);
@@ -178,6 +280,9 @@ function renderReport(focusHash = false) {
       requestAnimationFrame(() => target.scrollIntoView());
     }
   }
+}
+function formatBytes(n) {
+  return n < 1024 ? `${n} B` : `${Math.round(n / 1024)} KB`;
 }
 function findingHtml(f) {
   return `<article class="finding" id="finding-${esc(f.id)}"><div class="finding-top"><span class="badge ${f.source !== "deterministic" ? "model" : ""}">${esc(f.source !== "deterministic" ? "MODEL REVIEW" : f.rule)}</span><span class="finding-path">${esc(f.path)}:${f.start}${f.end !== f.start ? "–" + f.end : ""}</span><span class="small muted">${esc(f.confidence)} confidence${f.source === "deterministic" ? ` · ${f.contribution} raw normalized points` : ""}</span></div><h3>${esc(mode === "satirical" ? f.roast : f.title)}</h3><p>${esc(f.consequence)}</p><pre class="evidence"><code>${esc(f.evidence)}</code></pre><p><strong>Fix:</strong> ${esc(f.fix)}</p><p><strong>Verify:</strong> ${esc(f.check)}</p><div class="finding-actions"><a href="${esc(f.url)}" target="_blank" rel="noopener">View source at commit</a><button class="text-button" data-share="${esc(f.id)}">Share finding</button><button class="text-button" data-discuss="${esc(f.id)}">Discuss this finding</button><button class="text-button" data-discuss="${esc(f.id)}">Bad call?</button><a href="/library">Find a useful tool</a><button class="text-button" data-social="${esc(f.id)}">Offer for a social roast</button></div></article>`;
@@ -212,6 +317,7 @@ async function refreshConfig() {
   if ($("#quota-line")) $("#quota-line").textContent = quotaText();
   updateAiControls();
 }
+let aiAnnounced = null;
 function updateAiControls() {
   const control = $("#include-ai");
   if (!control) return;
@@ -222,6 +328,15 @@ function updateAiControls() {
   $("#ai-availability").textContent = fresh
     ? quotaText() + (available ? "" : " · Deterministic scanning is available.")
     : "Checking AI availability · deterministic scanning is available.";
+  const state = fresh ? config.quota.state : "stale";
+  if (state !== aiAnnounced && $("#ai-announce")) {
+    // Skip the first render: the visible text is already readable.
+    if (aiAnnounced !== null)
+      $("#ai-announce").textContent = available
+        ? "Fresh AI review is available again."
+        : "Fresh AI review is unavailable. Deterministic scanning still works.";
+    aiAnnounced = state;
+  }
 }
 async function signIn() {
   if (config.user) {
@@ -329,14 +444,14 @@ function contribute(kind, findingId = null, parent = null, existing = null) {
     }
   };
 }
-function pageHeader(eyebrow, title, intro, button = "") {
-  return `<div class="page-head"><div><span class="eyebrow">${eyebrow}</span><h1>${title}</h1><p class="muted">${intro}</p></div>${button}</div>`;
+function pageHeader(title, intro, button = "") {
+  return `<div class="page-head"><div><h1>${title}</h1><p class="muted">${intro}</p></div>${button}</div>`;
 }
 async function community() {
   const records = await api(`/content?kind=project&sort=${sort}`);
   currentItems = records;
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Built with AI. Improved by people.", "Community Slop", "Projects, lessons learned, and the parts that still need work.", '<button class="primary" id="add-project">Share a project</button>')}<div class="toolbar"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div><span class="small muted">Community votes are popularity, not engineering scores.</span></div>${records.length ? records.map(itemHtml).join("") : '<div class="empty"><h2>The first honest project story goes here.</h2><p>Share your public repo, what you built, and what you’re still figuring out. Running a scan never posts your repo here.</p></div>'}</div>`;
+    `<div class="page">${pageHeader("Community Slop", "Projects built with AI, and what people learned.", '<button class="primary" id="add-project">Share a project</button>')}<div class="toolbar"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div><span class="small muted">Community votes are popularity, not engineering scores.</span></div>${records.length ? records.map(itemHtml).join("") : '<div class="empty"><h2>No projects yet.</h2><p>Share yours. Running a scan never posts it here.</p></div>'}</div>`;
   $("#add-project").onclick = () => contribute("project");
 }
 function itemHtml(item) {
@@ -359,7 +474,7 @@ async function library() {
   ]);
   currentItems = submitted;
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Keep the useful parts. Fix the rest.", "Anti-Slop Library", "Tools and workflows that catch specific failures. No magic prompts.", '<button class="primary" id="add-resource">Suggest a resource</button>')}<div class="toolbar"><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-label="Search the library"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div></div><div id="resource-list">${seeds.map((r) => `<article class="resource" data-search="${esc(JSON.stringify(r).toLowerCase())}"><span class="tiny-label">${esc(r.type)} · ${esc(r.author)} · curated</span><h2>${esc(r.title)}</h2><p>${esc(r.failure)}</p><p><strong>Use it when:</strong> ${esc(r.when)}</p><a href="${esc(r.url)}" target="_blank" rel="noopener">Original resource</a></article>`).join("")}${submitted.map(itemHtml).join("")}</div><p class="small muted" id="no-resources" hidden>No resources match that search.</p></div>`;
+    `<div class="page">${pageHeader("Anti-Slop Library", "Tools and workflows that catch specific failures.", '<button class="primary" id="add-resource">Suggest a resource</button>')}<div class="toolbar"><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-label="Search the library"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div></div><div id="resource-list">${seeds.map((r) => `<article class="resource" data-search="${esc(JSON.stringify(r).toLowerCase())}"><span class="tiny-label">${esc(r.type)} · ${esc(r.author)} · curated</span><h2>${esc(r.title)}</h2><p>${esc(r.failure)}</p><p><strong>Use it when:</strong> ${esc(r.when)}</p><a href="${esc(r.url)}" target="_blank" rel="noopener">Original resource</a></article>`).join("")}${submitted.map(itemHtml).join("")}</div><p class="small muted" id="no-resources" hidden>No resources match that search.</p></div>`;
   $("#add-resource").onclick = () => contribute("resource");
   $("#resource-search").oninput = (e) => {
     let shown = 0;
@@ -379,7 +494,7 @@ async function forum() {
   currentItems = [...topics, ...replies];
   const topic = topics.find((x) => x.id === selected);
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Good code comes from good arguments.", "Slop Form", "Ask a question. Challenge a finding. Bring the evidence.", '<button class="primary" id="add-topic">Start a topic</button>')}${selected ? '<p><a href="/forum" class="small muted">All topics</a></p>' : ""}${
+    `<div class="page">${pageHeader("Slop Form", "Questions and challenges to findings, with evidence.", '<button class="primary" id="add-topic">Start a topic</button>')}${selected ? '<p><a href="/forum" class="small muted">All topics</a></p>' : ""}${
       selected
         ? topic
           ? itemHtml(topic) +
@@ -392,23 +507,23 @@ async function forum() {
           : '<div class="empty"><h2>Topic not found.</h2><p>It may have been removed by moderation.</p></div>'
         : topics.length
           ? topics.map(itemHtml).join("")
-          : '<div class="empty"><h2>Room for a useful conversation.</h2><p>Disagree with a finding? Use “Discuss this finding” in a report to start a topic with its exact evidence attached.</p></div>'
+          : '<div class="empty"><h2>No topics yet.</h2><p>Disagree with a finding? Use “Discuss this finding” on a report.</p></div>'
     }</div>`;
   $("#add-topic").onclick = () => contribute("topic");
 }
 async function portfolio() {
   const entries = await api("/portfolio");
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("The maintainer’s workbench", "My Slop", "AI-assisted projects, with an honest account of what got fixed.")}<p class="notice">Owner-curated portfolio. Community submissions live in Community Slop.</p>${entries.length ? entries.map((x) => `<article class="resource"><h2>${esc(x.title)}</h2><p>${esc(x.description)}</p><p>${esc(x.notes)}</p><a href="${esc(x.repo)}" target="_blank" rel="noopener">Public repository</a>${x.demo ? ` · <a href="${esc(x.demo)}" target="_blank" rel="noopener">Live demo</a>` : ""}</article>`).join("") : '<div class="empty"><h2>Still building. Nothing to dress up.</h2><p>The maintainer hasn’t published portfolio entries yet. Add real projects through <code>content/portfolio.json</code>, including the repo and a note on what was fixed.</p></div>'}</div>`;
+    `<div class="page">${pageHeader("Our Slop", "Projects from the Slop Guard team, and what got fixed.")}${entries.length ? entries.map((x) => `<article class="resource"><h2>${esc(x.title)}</h2><p>${esc(x.description)}</p><p>${esc(x.notes)}</p><a href="${esc(x.repo)}" target="_blank" rel="noopener">Public repository</a>${x.demo ? ` · <a href="${esc(x.demo)}" target="_blank" rel="noopener">Live demo</a>` : ""}</article>`).join("") : '<div class="empty"><h2>Nothing published yet.</h2><p>Team projects will appear here. Looking for community projects? See <a href="/community">Community Slop</a>.</p></div>'}</div>`;
 }
 function methodology() {
   $("#view").innerHTML =
-    `<div class="page prose">${pageHeader("Evidence before opinion", "How grading works", "Two independent signals. A visible scope. A useful next step.")}<p>Slop Guard reviews observable code quality. Neither score estimates whether a person or an AI wrote the code. Higher scores mean more observed problems, on a scale of 0–100.</p><h2>Deterministic rubric · v1.0</h2><table><thead><tr><th>Signal</th><th>Raw points</th><th>What it means</th></tr></thead><tbody><tr><td>Tautological Python test</td><td>18</td><td>A test body contains only assertions of literal True.</td></tr><tr><td>Identical Python branches</td><td>12</td><td>The two AST branches have identical statements.</td></tr><tr><td>Ruff undefined name F821</td><td>10</td><td>A referenced Python name is not defined.</td></tr><tr><td>TypeScript syntax diagnostic</td><td>8</td><td>Trusted compiler parser rejects the syntax.</td></tr><tr><td>Unused import / variable</td><td>2</td><td>Ruff F401 / F841, with isolated configuration.</td></tr><tr><td>File &gt;500 / function &gt;80 lines</td><td>1 each</td><td>Weak signals, combined cap of 5.</td></tr><tr><td>Comment length or density</td><td>0</td><td>Descriptive metrics only; verbosity is not a defect.</td></tr></tbody></table><p>Normalize substantive points by <code>max(1, inspected lines / 1,000)</code>, round and cap at 95. Add weak style points capped at 5. Each emitted rule/location is unique; separate rules can describe separate issues. Fewer than 10 inspected lines yields “insufficient coverage.” Partial scans describe only their inspected subset.</p><p>Worked example: a 500-line snapshot with one useless test (18) and two unused imports (4) scores 22. A long, useful 100-line comment scores 0. A 2,000-line snapshot with the same findings scores 11.</p><h2>Probabilistic AI Slop</h2><p>When an eligible free review provider is configured (Groq GPT-OSS by default, or Gemini Flash for an eligible pilot), it reviews bounded excerpts for contextual defects. We require a file path, line range, exact quotation, consequence, correction, and acceptance check. Invalid evidence is discarded. Confidence is a model judgment: high findings contribute 18, medium 9, low 3, capped at 100. This is not a calibrated probability. A matching quote confirms the evidence, not the interpretation.</p><h2>What a scan can—and cannot—cover</h2><p>Up to 35 files, 40 KB per file, 280 KB total, in stable path order. Python and JS/TS source only. Generated, binary, minified, vendored, lock, symlink, and submodule content is excluded. No cloning, dependency installation, submitted code execution, or repository-supplied executable configuration. Type checking and dependency-aware JS/TS unused-name checks are explicitly skipped. A bounded README is checked for literal Python or Node commands pointing to missing source scripts, when the tree is complete; working-directory intent still needs review.</p><p>The app publishes coverage and skipped checks. A low score is not proof of correctness. Snapshots and model reviews are cached by commit and review configuration. Mode switches and fix-plan exports make no model calls.</p><h2>Sources behind the approach</h2><ul><li><a href="https://google.github.io/eng-practices/review/reviewer/looking-for.html">Google Engineering Practices: review behavior, tests, and complexity</a></li><li><a href="https://docs.astral.sh/ruff/rules/">Astral: Ruff rules and correctness checks</a></li><li><a href="https://www.typescriptlang.org/docs/handbook/compiler-api.html">Microsoft: TypeScript compiler API</a></li><li><a href="https://ai.google.dev/gemini-api/docs/rate-limits">Google: project quotas and Pacific daily reset</a></li><li><a href="https://ai.google.dev/gemini-api/terms">Google: free-tier terms and audience restrictions</a></li></ul></div>`;
+    `<div class="page prose">${pageHeader("How grading works", "Two independent scores and a visible scope.")}<p>Slop Guard reviews observable code quality. Neither score estimates whether a person or an AI wrote the code. Higher scores mean more observed problems, on a scale of 0–100.</p><h2>Deterministic rubric · v1.0</h2><table><thead><tr><th>Signal</th><th>Raw points</th><th>What it means</th></tr></thead><tbody><tr><td>Tautological Python test</td><td>18</td><td>A test body contains only assertions of literal True.</td></tr><tr><td>Identical Python branches</td><td>12</td><td>The two AST branches have identical statements.</td></tr><tr><td>Ruff undefined name F821</td><td>10</td><td>A referenced Python name is not defined.</td></tr><tr><td>TypeScript syntax diagnostic</td><td>8</td><td>Trusted compiler parser rejects the syntax.</td></tr><tr><td>Unused import / variable</td><td>2</td><td>Ruff F401 / F841, with isolated configuration.</td></tr><tr><td>File &gt;500 / function &gt;80 lines</td><td>1 each</td><td>Weak signals, combined cap of 5.</td></tr><tr><td>Comment length or density</td><td>0</td><td>Descriptive metrics only; verbosity is not a defect.</td></tr></tbody></table><p>Normalize substantive points by <code>max(1, inspected lines / 1,000)</code>, round and cap at 95. Add weak style points capped at 5. Each emitted rule/location is unique; separate rules can describe separate issues. Fewer than 10 inspected lines yields “insufficient coverage.” Partial scans describe only their inspected subset.</p><p>Worked example: a 500-line snapshot with one useless test (18) and two unused imports (4) scores 22. A long, useful 100-line comment scores 0. A 2,000-line snapshot with the same findings scores 11.</p><h2>Probabilistic AI Slop</h2><p>When an eligible free review provider is configured (Groq GPT-OSS by default, or Gemini Flash for an eligible pilot), it reviews bounded excerpts for contextual defects. We require a file path, line range, exact quotation, consequence, correction, and acceptance check. Invalid evidence is discarded. Confidence is a model judgment: high findings contribute 18, medium 9, low 3, capped at 100. This is not a calibrated probability. A matching quote confirms the evidence, not the interpretation.</p><h2>What a scan can—and cannot—cover</h2><p>Up to 35 files, 40 KB per file, 280 KB total, in stable path order. Python and JS/TS source only. Generated, binary, minified, vendored, lock, symlink, and submodule content is excluded. No cloning, dependency installation, submitted code execution, or repository-supplied executable configuration. Type checking and dependency-aware JS/TS unused-name checks are explicitly skipped. A bounded README is checked for literal Python or Node commands pointing to missing source scripts, when the tree is complete; working-directory intent still needs review.</p><p>The app publishes coverage and skipped checks. A low score is not proof of correctness. Snapshots and model reviews are cached by commit and review configuration. Mode switches and fix-plan exports make no model calls.</p><h2>Sources behind the approach</h2><ul><li><a href="https://google.github.io/eng-practices/review/reviewer/looking-for.html">Google Engineering Practices: review behavior, tests, and complexity</a></li><li><a href="https://docs.astral.sh/ruff/rules/">Astral: Ruff rules and correctness checks</a></li><li><a href="https://www.typescriptlang.org/docs/handbook/compiler-api.html">Microsoft: TypeScript compiler API</a></li><li><a href="https://ai.google.dev/gemini-api/docs/rate-limits">Google: project quotas and Pacific daily reset</a></li><li><a href="https://ai.google.dev/gemini-api/terms">Google: free-tier terms and audience restrictions</a></li></ul></div>`;
 }
 async function moderation() {
   const records = await api("/admin");
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Admin only", "Moderation", "Review reported contributions.")} ${records.length ? records.map((r) => `<article class="resource"><h2>${esc(r.title)}</h2><p>${esc(r.body)}</p><p><strong>Report reason:</strong> ${esc(r.reason)}</p><button class="secondary" data-hide="${esc(r.item)}">Hide contribution</button></article>`).join("") : '<p class="muted">No unresolved reports.</p>'}</div>`;
+    `<div class="page">${pageHeader("Moderation", "Reported contributions. Admins only.")} ${records.length ? records.map((r) => `<article class="resource"><h2>${esc(r.title)}</h2><p>${esc(r.body)}</p><p><strong>Report reason:</strong> ${esc(r.reason)}</p><button class="secondary" data-hide="${esc(r.item)}">Hide contribution</button></article>`).join("") : '<p class="muted">No unresolved reports.</p>'}</div>`;
 }
 const header = $("header");
 const menuToggle = $("#menu-toggle");
@@ -432,7 +547,7 @@ function pageTitle(path) {
     "/community": "Community Slop",
     "/library": "Anti-Slop Library",
     "/forum": "Slop Form",
-    "/portfolio": "My Slop",
+    "/portfolio": "Our Slop",
     "/methodology": "How grading works",
     "/admin": "Moderation",
   };

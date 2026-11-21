@@ -50,13 +50,13 @@ report = dict(
 )
 with db.connect() as conn:
     conn.execute(
-        "INSERT INTO users VALUES (?,?)", ("fixture-member", "Local fixture member")
+        "INSERT INTO users VALUES (?,?)", ("fixture-member", "Test user")
     )
     conn.execute(
         "INSERT INTO reports VALUES (?,?,?,?)",
         ("local-fixture", "local-fixture", json.dumps(report), time.time()),
     )
-module.user = lambda request: {"id": "fixture-member", "name": "Local fixture member"}
+module.user = lambda request: {"id": "fixture-member", "name": "Test user"}
 
 # Explicit UI-only quota demonstration. No provider calls are enabled in this process.
 if "--quota-demo" in sys.argv:
@@ -94,7 +94,7 @@ async def fixture_banner(request, call_next):
         content = b"".join([chunk async for chunk in response.body_iterator]).decode()
         content = content.replace(
             "<body>",
-            '<body><div class="fixture-banner">LOCAL FIXTURE PREVIEW · synthetic code and test identity · no live scan or AI calls</div>',
+            '<body><div class="fixture-banner">Local preview · sample data and a test user · no live scans or AI calls</div>',
         )
         return HTMLResponse(content, headers={"X-Slop-Guard-Fixture": "true"})
     return response

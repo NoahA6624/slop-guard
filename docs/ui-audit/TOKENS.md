@@ -1,53 +1,39 @@
-# UI-02 design tokens and primitives
+# Design tokens
 
-Defined in `:root` at the top of `static/style.css`. Components use tokens; avoid new colour or spacing literals.
+Defined in `:root` at the top of `static/style.css`. Components use tokens rather than colour or spacing literals.
 
-## Roles
+Direction (after PR #13 review): plain white, near-black text and primary buttons, one blue accent for links and focus. Colour appears only where it means something (links, focus, errors, warnings). Swapping `--accent` or `--primary` restyles the site.
 
-| Token | Value | Role |
+| Token | Value | Use |
 | --- | --- | --- |
-| `--canvas` | `#f7f8f6` | Page background |
-| `--surface` | `#ffffff` | Reading surfaces, inputs, secondary buttons |
-| `--sunken` | `#eef2ee` | Coverage band, tone track, disabled controls |
-| `--code-bg` | `#f1f4f1` | Evidence and plan excerpts |
-| `--accent-soft` | `#e6efe9` | Notices, hover, selected tab background |
-| `--ink` | `#202722` | Body text and score numbers (scores are not coloured green) |
-| `--ink-2` | `#526057` | Secondary text and metadata (minimum 14px) |
-| `--line` | `#d8ded9` | Decorative separators |
-| `--line-strong` | `#78857b` | Input and control boundaries (needs 3:1) |
-| `--accent` / `--accent-hover` | `#245c43` / `#1b4733` | Single accent: primary actions, links, focus, current route |
-| `--danger` / `--danger-bg` | `#a13a2e` / `#fbedeb` | Errors, always with text |
-| `--warn-ink` / `--warn-bg` | `#6b4a10` / `#fff0cc` | Fixture banner and warnings |
-| `--info-ink` / `--info-bg` | `#5a4c7a` / `#efedf6` | Model-review provenance badge |
-| `--rule-ink` / `--rule-bg` | `#7a5524` / `#f6ecdf` | Deterministic rule badge |
+| `--canvas`, `--surface` | `#ffffff` | Page and cards |
+| `--sunken` / `--code-bg` | `#f4f5f7` / `#f6f7f9` | Tone track, disabled controls, notices / code |
+| `--ink` | `#111418` | Text, scores, selected states |
+| `--ink-2` | `#5a6169` | Secondary text (14px minimum) |
+| `--line` / `--line-strong` | `#e3e6ea` / `#858c96` | Separators / control borders |
+| `--primary` | `#111418` | Primary button (one per task area) |
+| `--accent` | `#1f4fd1` | Links, text buttons, focus ring |
+| `--danger` / `--danger-bg` | `#b42318` / `#fef3f2` | Errors, with text |
+| `--warn-ink` / `--warn-bg` | `#7a4d0b` / `#fff6e0` | Local preview banner, warnings |
+| `--badge-ink` / `--badge-bg` | `#3d434b` / `#f1f2f4` | Rule and model badges |
 
-Type: system UI and system monospace stacks, no web fonts. 14 / 16 / 18 / 20 / 24 / 36 / 48px, with smaller headings under 800px. Code 14px (badges 13px). Tabular numerals for scores, votes and quota timers.
-Space: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64px (`--s1`–`--s8`). Radius 4/6px. Work area 1200px, reading measure 72ch, gutter 20px (16px on phones). Interactive target 44px.
+Type: system UI and monospace stacks, 14–48px, tabular numerals for scores and timers. Space: 4–64px scale (`--s1`–`--s8`). Targets: 44px.
 
-## Calculated contrast (WCAG 2.x relative luminance)
+## Calculated contrast
 
-| Pair | Ratio | Requirement |
+| Pair | Ratio | Needed |
 | --- | --- | --- |
-| ink on canvas / surface | 14.34 / 15.28 | 4.5 |
-| ink-2 on canvas / surface / sunken / accent-soft / code-bg | 6.22 / 6.63 / 5.86 / 5.64 / 5.98 | 4.5 |
-| accent on canvas / surface / accent-soft | 7.34 / 7.82 / 6.66 | 4.5 |
-| white on accent / accent-hover | 7.82 / 10.52 | 4.5 |
-| danger on surface / danger-bg / canvas | 6.65 / 5.83 / 6.24 | 4.5 |
-| warn-ink on warn-bg | 7.12 | 4.5 |
-| info-ink on info-bg | 6.59 | 4.5 |
-| rule-ink on rule-bg | 5.70 | 4.5 |
-| line-strong on canvas / surface / sunken | 3.62 / 3.86 / 3.41 | 3.0 (UI boundary) |
-| focus ring (accent) on canvas / surface | 7.34 / 7.82 | 3.0 |
+| ink on white | 18.47 | 4.5 |
+| ink-2 on white / sunken / code-bg | 6.27 / 5.75 / 5.85 | 4.5 |
+| accent on white / sunken | 6.78 / 6.22 | 4.5 |
+| white on primary / primary-hover | 18.47 / 12.74 | 4.5 |
+| danger on white / danger-bg | 6.57 / 6.05 | 4.5 |
+| warn-ink on warn-bg | 6.74 | 4.5 |
+| badge-ink on badge-bg | 8.92 | 4.5 |
+| line-strong on white / sunken | 3.39 / 3.11 | 3.0 |
 
-These are calculated from token values, not from a rendered-pixel audit. UI-09 should re-check rendered combinations.
+Calculated from token values; UI-09 re-checks rendered pixels.
 
-## Primitives and states
+## States
 
-- Buttons: `.primary` (one filled action per task area), `.secondary` (outlined), `.text-button` (tertiary), `.icon-button`. All have a 44px minimum height; disabled uses `--sunken` with `--ink-2` text and `not-allowed` cursor instead of opacity. `[aria-busy="true"]` shows a progress cursor.
-- Fields: inputs, textareas and selects share border, height and focus. `[aria-invalid="true"]` adds a danger border; error text uses `.field-error` / `#form-error` with `role="alert"`.
-- Notices: `.notice` (info), `.notice-warn`, `.notice-error` / `.scan-error`; each has a left rule plus text, not colour alone.
-- Selected state: sort tabs, the tone switch and votes expose `aria-pressed`; styling keys off the attribute as well as the legacy class.
-- Dialog: named by `#modal-label` via `aria-labelledby`; focuses the first field or control; restores focus to the opener on close.
-- `prefers-reduced-motion` disables animation and smooth scrolling. `forced-colors: active` keeps button borders, highlights pressed or current state with system colours, and uses `Highlight` for focus.
-
-Not yet verified: rendering under forced-colors mode and reduced motion (rules exist; no emulation was run).
+Buttons, fields, notices, tabs, tone switch and votes share hover, focus, selected (`aria-pressed`), disabled (grey fill, not opacity), busy (`aria-busy`) and error (`aria-invalid`, `role="alert"`) treatments. Reduced-motion and forced-colors rules exist but have not been checked under emulation.

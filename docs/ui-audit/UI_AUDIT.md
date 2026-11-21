@@ -85,3 +85,26 @@ Journey: Home form → report (scores, coverage) → finding → View source (co
 - Countdown: keep the visible ticking text out of a live region; announce only state changes. (UI-04)
 - Tokens per sprint direction; status colours paired with text. (UI-02)
 - Do not reorder findings; keep server order and the existing 3-then-disclosure split. (UI-05)
+
+## UI-04 results (2026-11-20)
+
+Same fixture environment. `/api/scans` was stubbed inside the page for failure and success cases, so no request reached GitHub.
+
+- Layout: left-aligned slogan, purpose line, then the scan form; tone control is a secondary row below the form. The slogan's accessible name now has its missing space ("grades your"). At 390×844 Grade my repo ends at 488px (706px before); at 320×640 it ends at 552px with no overflow. Screenshots: `after-ui-04/`.
+- Input: the placeholder was `github.com/you/your-project`, a form the API rejected. The field now accepts `owner/repo`, `github.com/owner/repo` and `http(s)://(www.)github.com/owner/repo(.git)(/)`, and sends `owner/repo`. Branch and file links get an inline, field-associated error (`aria-invalid`, `aria-describedby`) without a request.
+- Failures: missing input, invalid input, 400 (not found or GitHub rate limit, with server text), 409 busy, 5xx and network failure each keep the input and show a `role="alert"` message with Try again. A network failure now reads "Couldn’t reach Slop Guard…" instead of "Failed to fetch".
+- Busy: one request per submission, even with three rapid submits. The button shows "Grading…" and the form sets `aria-busy`. Progress text sits in a polite status region, and focus stays in the field.
+- Success: navigates to the report, sets the title and `aria-current`, and focuses the report heading.
+- Availability: the visible countdown is no longer a live region. A hidden status announces only state changes: two announcements across a cooldown and recovery while the visible text updated four times. Available, cooldown, exhausted, unknown, disabled and stale (config older than 30s) each disable only fresh AI; Grade my repo stays enabled. Returning availability does not re-tick the AI box.
+- Tone switching on the home page previously wiped the typed repository. It now keeps the input, the AI choice and any error message.
+
+## PR #13 review changes (2026-11-20)
+
+Requested by the reviewer and the owner: simpler, less text, white background, no green.
+
+- Palette: white surfaces, ink text and primary buttons, one blue accent for links and focus (see `TOKENS.md`). Rule and model badges are neutral.
+- Scores: two boxes, each with a label and one number. The quota line stays directly under Probabilistic AI Slop. A single line beneath says "Higher means more slop" plus files inspected. The AI uncertainty note, size, rubric and cache state moved into "Coverage, metrics, and skipped checks". Size now shows bytes for small snapshots ("176 B", previously "0 KB").
+- Text removed: eyebrows on every page, the home "how it works" steps, example intro copy, "Same evidence. Different delivery.", footer taglines, and the "Find what's fragile…" line. Page intros cut to one short line; empty states shortened.
+- "My Slop" renamed to "Our Slop" (nav, heading, title, PROJECT.md) because the project has multiple contributors. The empty state no longer mentions `content/portfolio.json`.
+- Local preview: the fixture's signed-in user was labelled "Local fixture member"; it is now "Test user", and the banner reads "Local preview · sample data and a test user · no live scans or AI calls". This only exists in `scripts/preview_fixture.py`.
+- Rechecked at 390 and 1440: white background, no overflow, no controls under 44px, titles, `aria-current` and heading focus on every route; tone switch keeps focus and disclosures. Screenshots: `after-review-1/`.
