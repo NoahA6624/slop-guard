@@ -46,17 +46,28 @@ function notify(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => ($("#toast").style.display = "none"), 4500);
 }
+let modalOpener = null;
 function modal(title, html) {
+  const dialog = $("#modal");
+  if (!dialog.open) modalOpener = document.activeElement;
   $("#modal-label").textContent = title;
   $("#modal-body").innerHTML = html;
-  $("#modal").showModal();
+  if (!dialog.open) dialog.showModal();
+  const first = $("#modal-body").querySelector(
+    "[autofocus], input:not([type=hidden]), textarea, select, button, a[href]",
+  );
+  (first || $("#close-modal")).focus();
 }
+$("#modal").addEventListener("close", () => {
+  if (modalOpener?.isConnected) modalOpener.focus();
+  modalOpener = null;
+});
 $("#close-modal").onclick = () => $("#modal").close();
 $("#modal").addEventListener("click", (e) => {
   if (e.target === $("#modal")) $("#modal").close();
 });
 function modeControl() {
-  return `<div><div class="mode" aria-label="Report tone"><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div><div class="mode-note">Same evidence. Different delivery.</div></div>`;
+  return `<div><div class="mode" role="group" aria-label="Report tone"><button data-mode="serious" class="${mode === "serious" ? "selected" : ""}" aria-pressed="${mode === "serious"}">Serious</button><button data-mode="satirical" class="${mode === "satirical" ? "selected" : ""}" aria-pressed="${mode === "satirical"}">Satirical</button></div><div class="mode-note">Same evidence. Different delivery.</div></div>`;
 }
 function changeMode(next) {
   mode = next;
@@ -65,9 +76,19 @@ function changeMode(next) {
   url.searchParams.set("mode", mode);
   history.replaceState({}, "", url);
   const y = scrollY;
+  const open = [...document.querySelectorAll("#view details")].map(
+    (d) => d.open,
+  );
+  const focused = document.activeElement?.closest("#view [data-mode]")
+    ? `[data-mode="${next}"]`
+    : null;
   if (report && location.pathname.startsWith("/reports/")) renderReport();
   else home();
+  document
+    .querySelectorAll("#view details")
+    .forEach((d, i) => open[i] && (d.open = true));
   scrollTo(0, y);
+  if (focused) $("#view " + focused)?.focus();
 }
 function home() {
   report = null;
@@ -315,11 +336,11 @@ async function community() {
   const records = await api(`/content?kind=project&sort=${sort}`);
   currentItems = records;
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Built with AI. Improved by people.", "Community Slop", "Projects, lessons learned, and the parts that still need work.", '<button class="primary" id="add-project">Share a project</button>')}<div class="toolbar"><div class="tabs"><button data-sort="new" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" class="${sort === "top" ? "active" : ""}">Top</button></div><span class="small muted">Community votes are popularity, not engineering scores.</span></div>${records.length ? records.map(itemHtml).join("") : '<div class="empty"><h2>The first honest project story goes here.</h2><p>Share your public repo, what you built, and what you’re still figuring out. Running a scan never posts your repo here.</p></div>'}</div>`;
+    `<div class="page">${pageHeader("Built with AI. Improved by people.", "Community Slop", "Projects, lessons learned, and the parts that still need work.", '<button class="primary" id="add-project">Share a project</button>')}<div class="toolbar"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div><span class="small muted">Community votes are popularity, not engineering scores.</span></div>${records.length ? records.map(itemHtml).join("") : '<div class="empty"><h2>The first honest project story goes here.</h2><p>Share your public repo, what you built, and what you’re still figuring out. Running a scan never posts your repo here.</p></div>'}</div>`;
   $("#add-project").onclick = () => contribute("project");
 }
 function itemHtml(item) {
-  return `<article class="contribution" id="item-${esc(item.id)}"><div class="contribution-meta"><span>${esc(item.author)}</span><time>${new Date(item.created * 1000).toLocaleDateString()}</time></div><h2>${esc(item.title)}</h2><p>${esc(item.body)}</p>${item.url ? `<p><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.url)}</a></p>` : ""}${item.evidence ? evidenceHtml(item.evidence) : ""}<div class="finding-actions"><span class="votes"><button data-vote="${item.id}" data-value="${item.my_vote === 1 ? 0 : 1}" class="${item.my_vote === 1 ? "chosen" : ""}" aria-label="Upvote ${esc(item.title)}">+</button><span>${item.votes}</span><button data-vote="${item.id}" data-value="${item.my_vote === -1 ? 0 : -1}" class="${item.my_vote === -1 ? "chosen" : ""}" aria-label="Downvote ${esc(item.title)}">−</button></span>${item.kind === "topic" ? `<a href="/forum?topic=${item.id}">Open discussion</a><button class="text-button" data-reply="${item.id}">Reply</button>` : ""}${config.user?.id === item.owner ? `<button class="text-button" data-edit="${item.id}">Edit</button>` : ""}<button class="text-button" data-abuse="${item.id}">Report</button></div></article>`;
+  return `<article class="contribution" id="item-${esc(item.id)}"><div class="contribution-meta"><span>${esc(item.author)}</span><time>${new Date(item.created * 1000).toLocaleDateString()}</time></div><h2>${esc(item.title)}</h2><p>${esc(item.body)}</p>${item.url ? `<p><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.url)}</a></p>` : ""}${item.evidence ? evidenceHtml(item.evidence) : ""}<div class="finding-actions"><span class="votes"><button data-vote="${item.id}" data-value="${item.my_vote === 1 ? 0 : 1}" class="${item.my_vote === 1 ? "chosen" : ""}" aria-pressed="${item.my_vote === 1}" aria-label="Upvote ${esc(item.title)}">+</button><span>${item.votes}</span><button data-vote="${item.id}" data-value="${item.my_vote === -1 ? 0 : -1}" class="${item.my_vote === -1 ? "chosen" : ""}" aria-pressed="${item.my_vote === -1}" aria-label="Downvote ${esc(item.title)}">−</button></span>${item.kind === "topic" ? `<a href="/forum?topic=${item.id}">Open discussion</a><button class="text-button" data-reply="${item.id}">Reply</button>` : ""}${config.user?.id === item.owner ? `<button class="text-button" data-edit="${item.id}">Edit</button>` : ""}<button class="text-button" data-abuse="${item.id}">Report</button></div></article>`;
 }
 function evidenceHtml(raw) {
   try {
@@ -338,7 +359,7 @@ async function library() {
   ]);
   currentItems = submitted;
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Keep the useful parts. Fix the rest.", "Anti-Slop Library", "Tools and workflows that catch specific failures. No magic prompts.", '<button class="primary" id="add-resource">Suggest a resource</button>')}<div class="toolbar"><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-label="Search the library"><div class="tabs"><button data-sort="new" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" class="${sort === "top" ? "active" : ""}">Top</button></div></div><div id="resource-list">${seeds.map((r) => `<article class="resource" data-search="${esc(JSON.stringify(r).toLowerCase())}"><span class="tiny-label">${esc(r.type)} · ${esc(r.author)} · curated</span><h2>${esc(r.title)}</h2><p>${esc(r.failure)}</p><p><strong>Use it when:</strong> ${esc(r.when)}</p><a href="${esc(r.url)}" target="_blank" rel="noopener">Original resource</a></article>`).join("")}${submitted.map(itemHtml).join("")}</div><p class="small muted" id="no-resources" hidden>No resources match that search.</p></div>`;
+    `<div class="page">${pageHeader("Keep the useful parts. Fix the rest.", "Anti-Slop Library", "Tools and workflows that catch specific failures. No magic prompts.", '<button class="primary" id="add-resource">Suggest a resource</button>')}<div class="toolbar"><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-label="Search the library"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div></div><div id="resource-list">${seeds.map((r) => `<article class="resource" data-search="${esc(JSON.stringify(r).toLowerCase())}"><span class="tiny-label">${esc(r.type)} · ${esc(r.author)} · curated</span><h2>${esc(r.title)}</h2><p>${esc(r.failure)}</p><p><strong>Use it when:</strong> ${esc(r.when)}</p><a href="${esc(r.url)}" target="_blank" rel="noopener">Original resource</a></article>`).join("")}${submitted.map(itemHtml).join("")}</div><p class="small muted" id="no-resources" hidden>No resources match that search.</p></div>`;
   $("#add-resource").onclick = () => contribute("resource");
   $("#resource-search").oninput = (e) => {
     let shown = 0;
@@ -389,24 +410,61 @@ async function moderation() {
   $("#view").innerHTML =
     `<div class="page">${pageHeader("Admin only", "Moderation", "Review reported contributions.")} ${records.length ? records.map((r) => `<article class="resource"><h2>${esc(r.title)}</h2><p>${esc(r.body)}</p><p><strong>Report reason:</strong> ${esc(r.reason)}</p><button class="secondary" data-hide="${esc(r.item)}">Hide contribution</button></article>`).join("") : '<p class="muted">No unresolved reports.</p>'}</div>`;
 }
+const header = $("header");
+const menuToggle = $("#menu-toggle");
+function setMenu(open, returnFocus = false) {
+  header.classList.toggle("menu-open", open);
+  menuToggle.setAttribute("aria-expanded", String(open));
+  if (!open && returnFocus) menuToggle.focus();
+}
+menuToggle.onclick = () =>
+  setMenu(menuToggle.getAttribute("aria-expanded") !== "true");
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && header.classList.contains("menu-open"))
+    setMenu(false, true);
+});
+document.addEventListener("click", (e) => {
+  if (header.classList.contains("menu-open") && !header.contains(e.target))
+    setMenu(false);
+});
+function pageTitle(path) {
+  const names = {
+    "/community": "Community Slop",
+    "/library": "Anti-Slop Library",
+    "/forum": "Slop Form",
+    "/portfolio": "My Slop",
+    "/methodology": "How grading works",
+    "/admin": "Moderation",
+  };
+  if (path.startsWith("/reports/"))
+    return report ? `${report.repo} report` : "Repo report";
+  return names[path] || null;
+}
 function navigate(path, render = true) {
   history.pushState({}, "", path);
   if (render) {
     scrollTo(0, 0);
-    route();
+    route({ focus: true });
   }
 }
-async function route() {
+function markRoute() {
   const path = location.pathname;
-  document
-    .querySelectorAll("nav a")
-    .forEach((a) =>
-      a.classList.toggle(
-        "active",
-        a.getAttribute("href") === path ||
-          (path.startsWith("/reports/") && a.dataset.page === "scan"),
-      ),
-    );
+  document.querySelectorAll(".site-nav a").forEach((a) => {
+    const current =
+      a.getAttribute("href") === path ||
+      (path.startsWith("/reports/") && a.dataset.page === "scan");
+    if (current) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
+  const name = pageTitle(path);
+  document.title = name
+    ? `${name} · Slop Guard`
+    : "Slop Guard — Make the code better.";
+}
+async function route({ focus = false } = {}) {
+  const path = location.pathname;
+  setMenu(false);
+  markRoute();
   try {
     if (path.startsWith("/reports/")) {
       report = await api("/reports/" + path.split("/")[2]);
@@ -421,6 +479,14 @@ async function route() {
   } catch (e) {
     $("#view").innerHTML =
       `<div class="page"><div class="empty"><h1>That didn’t load.</h1><p>${esc(e.message)}</p><a class="secondary" href="/">Back to the grader</a></div></div>`;
+  }
+  markRoute();
+  if (focus) {
+    const heading = $("#view h1");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: !!location.hash });
+    } else $("#main").focus();
   }
 }
 document.addEventListener("click", async (e) => {
@@ -505,7 +571,7 @@ window.addEventListener("popstate", () => {
     new URLSearchParams(location.search).get("mode") ||
     localStorage.getItem("slop-mode") ||
     "serious";
-  route();
+  route({ focus: true });
 });
 function offerSocial(id) {
   if (!needAccount()) return;

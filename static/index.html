@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#fafbf9" />
+    <meta name="theme-color" content="#f7f8f6" />
     <meta
       name="description"
       content="Evidence-first code review for AI-assisted projects. Find the problem. Inspect the proof. Leave with a fix."
@@ -26,33 +26,58 @@
             ><span class="brand-period">.</span></span
           ></a
         >
-        <nav aria-label="Main navigation">
-          <a href="/" data-page="scan">Repo grader</a
-          ><a href="/community" data-page="community">Community Slop</a
-          ><a href="/library" data-page="library">Anti-Slop Library</a
-          ><a href="/forum" data-page="forum">Slop Form</a
-          ><a href="/portfolio" data-page="portfolio">My Slop</a>
+        <button
+          class="secondary menu-toggle"
+          id="menu-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+        >
+          Menu
+        </button>
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <ul>
+            <li><a href="/" data-page="scan">Repo grader</a></li>
+            <li>
+              <a href="/community" data-page="community">Community Slop</a>
+            </li>
+            <li>
+              <a href="/library" data-page="library">Anti-Slop Library</a>
+            </li>
+            <li><a href="/forum" data-page="forum">Slop Form</a></li>
+            <li><a href="/portfolio" data-page="portfolio">My Slop</a></li>
+          </ul>
         </nav>
-        <button class="text-button signin" id="signin">Sign in</button>
+        <button class="secondary signin" id="signin" type="button">
+          Sign in
+        </button>
       </div>
     </header>
     <main id="main" tabindex="-1"><div id="view"></div></main>
     <footer>
-      <a class="footer-brand" href="/">slopguard.</a
-      ><span>Better code. Thicker skin.</span
-      ><a href="/methodology">How grading works</a
-      ><a
-        href="https://github.com/NoahA6624/slop-guard"
-        target="_blank"
-        rel="noopener"
-        >Source on GitHub</a
-      ><span class="footer-note">Free to scan. Evidence included.</span>
+      <div class="footer-inner">
+        <a class="footer-brand" href="/">slopguard.</a>
+        <span>Better code. Thicker skin.</span>
+        <a href="/methodology">How grading works</a>
+        <a
+          href="https://github.com/NoahA6624/slop-guard"
+          target="_blank"
+          rel="noopener"
+          >Source on GitHub</a
+        >
+        <span class="footer-note">Free to scan. Evidence included.</span>
+      </div>
     </footer>
     <div id="toast" role="status" aria-live="polite"></div>
-    <dialog id="modal">
+    <dialog id="modal" aria-labelledby="modal-label">
       <div class="dialog-top">
         <span id="modal-label">Slop Guard</span
-        ><button id="close-modal" class="icon-button" aria-label="Close dialog">
+        ><button
+          id="close-modal"
+          class="icon-button"
+          type="button"
+          aria-label="Close dialog"
+        >
           ×
         </button>
       </div>
