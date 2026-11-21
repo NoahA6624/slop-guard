@@ -115,7 +115,7 @@ Requested: a slight, original accent so text is not plain black. Ink is now midn
 
 ## UI-05 results (2026-11-20)
 
-Branch `codex/ui-05-report-hierarchy` from `dev` at `b569d0a`. Same fixture environment.
+Branch `feature/ui-05-report-hierarchy` from `dev` at `b569d0a`. Same fixture environment.
 
 - **Finding layout:** each finding reads top to bottom: rule badge and confidence (with point contribution for deterministic rules), title, consequence, source excerpt, then Fix and Verify. Server order and the three-then-disclosure split are unchanged.
 - **Source excerpt:** a header shows the path and line range. Line numbers sit in a gutter that stays visible while long lines scroll sideways inside the excerpt. Numbers appear only when the excerpt is exactly the cited range, and they aren't selectable, so copying gives clean code.
@@ -127,7 +127,7 @@ Branch `codex/ui-05-report-hierarchy` from `dev` at `b569d0a`. Same fixture envi
 
 ## UI-06 results (2026-11-20)
 
-Branch `codex/ui-06-fix-plan-export` from `dev` at `f2e6e7d`. Same fixture environment.
+Branch `feature/ui-06-fix-plan-export` from `dev` at `f2e6e7d`. Same fixture environment.
 
 - **Dialog content:** the plan dialog states the plan type, using the server's own rule (Cached model review when model findings exist, otherwise Deterministic checklist). It also shows the repository, short commit, item count and "no new AI call", above a scrollable, labelled preview.
 - **Focus:** the dialog is named "Fix My AI Slop" and focus starts on Copy Markdown. Escape and Close return focus to the Fix My AI Slop button. `modal()` now honours `autofocus` before falling back to the first control.
