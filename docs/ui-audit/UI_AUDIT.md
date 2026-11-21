@@ -156,3 +156,31 @@ Branch `feature/tone-switch-animation` from `dev` at `48c8b6c`.
 - **Unchanged:** focus, `aria-pressed`, the URL, and zero network requests.
 - **Layout:** no overflow at 320px on home and the report.
 - **Checks:** 45 pytest, `node --check` and Prettier passed.
+
+## UI-07 results (2026-11-20)
+
+Branch `feature/ui-07-community-pages` from `dev` at `3f8ca2c`. Same fixture environment. Sample posts were added only to the preview's temporary database: a long project, a topic attached to a fixture finding, a reply, a community resource, and an HTML-injection title.
+
+- **Shared row:** projects, topics, replies and community resources share one layout:
+  - author, date and context (reply count, "Community") in the meta line;
+  - title (topics link to their page), body clamped to four lines in lists and shown in full on a topic page;
+  - a short link label (host and path), votes, then the actions.
+- **Votes:**
+  - Shown as ▲ count ▼ in a group labelled "Popularity: N votes". The toolbar says "Votes show popularity, not code quality."
+  - Voting and New/Top sorting keep keyboard focus on the button pressed (both previously dropped it to the page body).
+  - Votes are reversible: on, off, and on again.
+- **Library:**
+  - Curated and community entries are searched together. Curated entries show type, author and "Original by <author>: <link>".
+  - A visible, polite status reads "5 resources", "1 of 5 match …" or "No resources match …". The search field has a real (visually hidden) label.
+- **Slop Form:**
+  - The topic list shows reply counts.
+  - A topic page has "← All topics", the full topic, "N replies" with indented replies in time order, and Add a reply.
+  - The reply dialog shows "Replying to: <topic>". The tab title becomes "<topic> · Slop Form · Slop Guard".
+  - Attached findings reuse the report's source excerpt (path, line numbers) with Open exact finding and View source at commit.
+- **Methodology:**
+  - An "On this page" contents list.
+  - The rubric table sits in a labelled scroll region with a caption.
+  - Same-page #anchor links no longer re-render the page; previously `popstate` re-routed and jumped to the top.
+- **Escaping:** the injected `<img onerror>` title and `<script>` body render as text; no script ran.
+- **Widths:** no overflow at 320, 390, 768 and 1440px on community, library, forum, topic, portfolio, methodology and home. No controls under 44px.
+- **Checks:** 45 pytest, `node --check` and Prettier passed. Screenshot: `after-ui-07/topic-390.jpg`.

@@ -136,6 +136,7 @@ function changeMode(next) {
   const url = new URL(location);
   url.searchParams.set("mode", mode);
   history.replaceState({}, "", url);
+  routedTo = location.pathname + location.search;
   const y = scrollY;
   const open = [...document.querySelectorAll("#view details")].map(
     (d) => d.open,
@@ -513,6 +514,7 @@ function contribute(kind, findingId = null, parent = null, existing = null) {
   if (!needAccount()) return;
   const f = report?.findings.find((f) => f.id === findingId);
   const title = existing?.title || (f ? `Review finding: ${f.title}` : "");
+  const topic = kind === "reply" && currentItems.find((x) => x.id === parent);
   modal(
     existing
       ? "Edit your contribution"
@@ -521,7 +523,7 @@ function contribute(kind, findingId = null, parent = null, existing = null) {
         : kind === "reply"
           ? "Reply to this topic"
           : "Share something useful",
-    `<h2 class="dialog-title">${f ? "Let’s look at the evidence." : kind === "resource" ? "A resource with a purpose." : kind === "project" ? "Give your project some context." : "Make the discussion useful."}</h2>${f ? `<p class="notice">Attached: ${esc(f.path)}:${f.start} at ${esc(report.sha.slice(0, 8))}. Commit-pinned evidence travels with this topic.</p>` : ""}<form class="field-form" id="contribution-form"><label for="entry-title">Title</label><input id="entry-title" required minlength="3" maxlength="140" value="${esc(title)}"><label for="entry-body">${kind === "resource" ? "What failure does it catch, and when should someone use it?" : "Context"}</label><textarea id="entry-body" required minlength="10" maxlength="5000" placeholder="What should someone know? What worked, what broke, or what did the grader miss?">${esc(existing?.body || "")}</textarea>${["project", "resource"].includes(kind) ? `<label for="entry-url">Public HTTPS link</label><input id="entry-url" type="url" required placeholder="https://…" value="${esc(existing?.url || "")}">` : ""}${kind === "project" ? '<label for="entry-report">Optional Slop Guard report link</label><input id="entry-report" type="url" placeholder="http://127.0.0.1:8000/reports/…">' : ""}<p>Sharing a project does not grant permission for social roasts. Featuring requires separate maintainer consent and admin verification.</p><button class="primary" type="submit">${existing ? "Save changes" : kind === "reply" ? "Post reply" : "Publish " + (kind === "topic" ? "topic" : kind)}</button><div id="form-error" role="alert"></div></form>`,
+    `<h2 class="dialog-title">${f ? "Let’s look at the evidence." : kind === "resource" ? "A resource with a purpose." : kind === "project" ? "Give your project some context." : "Make the discussion useful."}</h2>${topic ? `<p class="notice">Replying to: <strong>${esc(topic.title)}</strong></p>` : ""}${f ? `<p class="notice">Attached: ${esc(f.path)}:${f.start} at ${esc(report.sha.slice(0, 8))}. Commit-pinned evidence travels with this topic.</p>` : ""}<form class="field-form" id="contribution-form"><label for="entry-title">Title</label><input id="entry-title" required minlength="3" maxlength="140" value="${esc(title)}"><label for="entry-body">${kind === "resource" ? "What failure does it catch, and when should someone use it?" : "Context"}</label><textarea id="entry-body" required minlength="10" maxlength="5000" placeholder="What should someone know? What worked, what broke, or what did the grader miss?">${esc(existing?.body || "")}</textarea>${["project", "resource"].includes(kind) ? `<label for="entry-url">Public HTTPS link</label><input id="entry-url" type="url" required placeholder="https://…" value="${esc(existing?.url || "")}">` : ""}${kind === "project" ? '<label for="entry-report">Optional Slop Guard report link</label><input id="entry-report" type="url" placeholder="http://127.0.0.1:8000/reports/…">' : ""}<p>Sharing a project does not grant permission for social roasts. Featuring requires separate maintainer consent and admin verification.</p><button class="primary" type="submit">${existing ? "Save changes" : kind === "reply" ? "Post reply" : "Publish " + (kind === "topic" ? "topic" : kind)}</button><div id="form-error" role="alert"></div></form>`,
   );
   $("#contribution-form").onsubmit = async (e) => {
     e.preventDefault();
@@ -559,25 +561,54 @@ function contribute(kind, findingId = null, parent = null, existing = null) {
 function pageHeader(title, intro, button = "") {
   return `<div class="page-head"><div><h1>${title}</h1><p class="muted">${intro}</p></div>${button}</div>`;
 }
-async function community() {
-  const records = await api(`/content?kind=project&sort=${sort}`);
-  currentItems = records;
-  $("#view").innerHTML =
-    `<div class="page">${pageHeader("Community Slop", "Projects built with AI, and what people learned.", '<button class="primary" id="add-project">Share a project</button>')}<div class="toolbar"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div><span class="small muted">Community votes are popularity, not engineering scores.</span></div>${records.length ? records.map(itemHtml).join("") : '<div class="empty"><h2>No projects yet.</h2><p>Share yours. Running a scan never posts it here.</p></div>'}</div>`;
-  $("#add-project").onclick = () => contribute("project");
+function sortTabs() {
+  return `<div class="tabs" role="group" aria-label="Sort">${["new", "top"].map((k) => `<button data-sort="${k}" aria-pressed="${sort === k}" class="${sort === k ? "active" : ""}">${k === "new" ? "New" : "Top"}</button>`).join("")}</div>`;
 }
-function itemHtml(item) {
-  return `<article class="contribution" id="item-${esc(item.id)}"><div class="contribution-meta"><span>${esc(item.author)}</span><time>${new Date(item.created * 1000).toLocaleDateString()}</time></div><h2>${esc(item.title)}</h2><p>${esc(item.body)}</p>${item.url ? `<p><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.url)}</a></p>` : ""}${item.evidence ? evidenceHtml(item.evidence) : ""}<div class="finding-actions"><span class="votes"><button data-vote="${item.id}" data-value="${item.my_vote === 1 ? 0 : 1}" class="${item.my_vote === 1 ? "chosen" : ""}" aria-pressed="${item.my_vote === 1}" aria-label="Upvote ${esc(item.title)}">+</button><span>${item.votes}</span><button data-vote="${item.id}" data-value="${item.my_vote === -1 ? 0 : -1}" class="${item.my_vote === -1 ? "chosen" : ""}" aria-pressed="${item.my_vote === -1}" aria-label="Downvote ${esc(item.title)}">−</button></span>${item.kind === "topic" ? `<a href="/forum?topic=${item.id}">Open discussion</a><button class="text-button" data-reply="${item.id}">Reply</button>` : ""}${config.user?.id === item.owner ? `<button class="text-button" data-edit="${item.id}">Edit</button>` : ""}<button class="text-button" data-abuse="${item.id}">Report</button></div></article>`;
+function linkLabel(url) {
+  try {
+    const u = new URL(url);
+    const path =
+      u.pathname.length > 24 ? u.pathname.slice(0, 22) + "…" : u.pathname;
+    return u.host + (path === "/" ? "" : path);
+  } catch {
+    return url;
+  }
+}
+function votesHtml(item) {
+  const title = esc(item.title);
+  const count = `${item.votes} ${Math.abs(item.votes) === 1 ? "vote" : "votes"}`;
+  return `<span class="votes" role="group" aria-label="Popularity: ${count}"><button data-vote="${esc(item.id)}" data-dir="up" data-value="${item.my_vote === 1 ? 0 : 1}" class="${item.my_vote === 1 ? "chosen" : ""}" aria-pressed="${item.my_vote === 1}" aria-label="Upvote ${title}">▲</button><span class="vote-count" aria-hidden="true">${item.votes}</span><button data-vote="${esc(item.id)}" data-dir="down" data-value="${item.my_vote === -1 ? 0 : -1}" class="${item.my_vote === -1 ? "chosen" : ""}" aria-pressed="${item.my_vote === -1}" aria-label="Downvote ${title}">▼</button></span>`;
+}
+function itemHtml(item, { detail = false, replies = null } = {}) {
+  const topicLink = item.kind === "topic" && !detail;
+  const title = topicLink
+    ? `<a href="/forum?topic=${esc(item.id)}">${esc(item.title)}</a>`
+    : esc(item.title);
+  const heading = item.kind === "reply" ? "" : `<h2>${title}</h2>`;
+  const meta = [
+    esc(item.author),
+    `<time datetime="${new Date(item.created * 1000).toISOString()}">${new Date(item.created * 1000).toLocaleDateString()}</time>`,
+    item.kind === "resource" ? "Community" : "",
+    replies != null ? `${replies} ${replies === 1 ? "reply" : "replies"}` : "",
+  ].filter(Boolean);
+  return `<article class="contribution${item.kind === "reply" ? " reply" : ""}" id="item-${esc(item.id)}"><div class="contribution-meta">${meta.join('<span aria-hidden="true">·</span>')}</div>${heading}<p class="${detail || item.kind === "reply" ? "" : "clamp"}">${esc(item.body)}</p>${item.url ? `<p class="item-link"><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(linkLabel(item.url))}</a></p>` : ""}${item.evidence ? evidenceHtml(item.evidence) : ""}<div class="item-actions">${votesHtml(item)}${detail ? `<button class="text-button" data-reply="${esc(item.id)}">Reply</button>` : ""}${config.user?.id === item.owner ? `<button class="text-button" data-edit="${esc(item.id)}">Edit</button>` : ""}<button class="text-button" data-abuse="${esc(item.id)}">Report</button></div></article>`;
 }
 function evidenceHtml(raw) {
   try {
     const e = JSON.parse(raw);
     if (!e.finding)
-      return `<p class="notice">Attached scan: ${esc(e.repo)} at ${esc(e.sha.slice(0, 8))} · deterministic ${e.score ?? "insufficient coverage"} · <a href="/reports/${esc(e.report)}">View report</a></p>`;
-    return `<div class="notice"><strong>Attached finding · ${esc(e.repo)} at ${esc(e.sha.slice(0, 8))}</strong><p>${esc(e.finding.title)}</p><pre class="evidence">${esc(e.finding.evidence)}</pre><a href="/reports/${esc(e.report)}?mode=${mode}#finding-${esc(e.finding.id)}">Open exact finding</a> · <a href="${esc(e.finding.url)}" target="_blank" rel="noopener">View source</a></div>`;
+      return `<p class="attached">Attached scan: <a href="/reports/${esc(e.report)}">${esc(e.repo)} at <code>${esc(e.sha.slice(0, 8))}</code></a> · Deterministic Slop Score ${e.score ?? "insufficient coverage"}</p>`;
+    return `<div class="attached"><p><strong>Attached finding:</strong> ${esc(e.finding.title)} · ${esc(e.repo)} at <code>${esc(e.sha.slice(0, 8))}</code></p>${sourceHtml(e.finding)}<p><a href="/reports/${esc(e.report)}?mode=${mode}#finding-${esc(e.finding.id)}">Open exact finding</a> · <a href="${esc(e.finding.url)}" target="_blank" rel="noopener">View source at commit</a></p></div>`;
   } catch {
     return "";
   }
+}
+async function community() {
+  const records = await api(`/content?kind=project&sort=${sort}`);
+  currentItems = records;
+  $("#view").innerHTML =
+    `<div class="page">${pageHeader("Community Slop", "Projects built with AI, and what people learned.", '<button class="primary" id="add-project">Share a project</button>')}<div class="toolbar">${sortTabs()}<span class="small muted">Votes show popularity, not code quality.</span></div>${records.length ? records.map((r) => itemHtml(r)).join("") : '<div class="empty"><h2>No projects yet.</h2><p>Share yours. Running a scan never posts it here.</p></div>'}</div>`;
+  $("#add-project").onclick = () => contribute("project");
 }
 async function library() {
   const [seeds, submitted] = await Promise.all([
@@ -585,43 +616,58 @@ async function library() {
     api("/content?kind=resource&sort=" + sort),
   ]);
   currentItems = submitted;
+  const curated = seeds
+    .map(
+      (r) =>
+        `<article class="resource"><div class="contribution-meta">${esc(r.type)}<span aria-hidden="true">·</span>${esc(r.author)}<span aria-hidden="true">·</span>Curated</div><h2>${esc(r.title)}</h2><p>${esc(r.failure)}</p><p><strong>Use it when:</strong> ${esc(r.when)}</p><p class="item-link"><a href="${esc(r.url)}" target="_blank" rel="noopener">Original by ${esc(r.author)}: ${esc(linkLabel(r.url))}</a></p></article>`,
+    )
+    .join("");
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Anti-Slop Library", "Tools and workflows that catch specific failures.", '<button class="primary" id="add-resource">Suggest a resource</button>')}<div class="toolbar"><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-label="Search the library"><div class="tabs" role="group" aria-label="Sort"><button data-sort="new" aria-pressed="${sort === "new"}" class="${sort === "new" ? "active" : ""}">New</button><button data-sort="top" aria-pressed="${sort === "top"}" class="${sort === "top" ? "active" : ""}">Top</button></div></div><div id="resource-list">${seeds.map((r) => `<article class="resource" data-search="${esc(JSON.stringify(r).toLowerCase())}"><span class="tiny-label">${esc(r.type)} · ${esc(r.author)} · curated</span><h2>${esc(r.title)}</h2><p>${esc(r.failure)}</p><p><strong>Use it when:</strong> ${esc(r.when)}</p><a href="${esc(r.url)}" target="_blank" rel="noopener">Original resource</a></article>`).join("")}${submitted.map(itemHtml).join("")}</div><p class="small muted" id="no-resources" hidden>No resources match that search.</p></div>`;
+    `<div class="page">${pageHeader("Anti-Slop Library", "Tools and workflows that catch specific failures.", '<button class="primary" id="add-resource">Suggest a resource</button>')}<div class="toolbar"><label class="visually-hidden" for="resource-search">Search the library</label><input id="resource-search" type="search" placeholder="Search tools, failures, workflows…" aria-describedby="resource-count">${sortTabs()}</div><p class="small muted" id="resource-count" role="status"></p><div id="resource-list">${curated}${submitted.map((r) => itemHtml(r)).join("")}</div></div>`;
   $("#add-resource").onclick = () => contribute("resource");
-  $("#resource-search").oninput = (e) => {
+  const search = $("#resource-search");
+  const total = seeds.length + submitted.length;
+  const filter = () => {
+    const q = search.value.trim().toLowerCase();
     let shown = 0;
     document.querySelectorAll("#resource-list article").forEach((el) => {
-      el.hidden = !(el.dataset.search || el.textContent.toLowerCase()).includes(
-        e.target.value.toLowerCase(),
-      );
+      el.hidden = q && !el.textContent.toLowerCase().includes(q);
       shown += !el.hidden;
     });
-    $("#no-resources").hidden = shown > 0;
+    $("#resource-count").textContent = !q
+      ? `${total} ${total === 1 ? "resource" : "resources"}`
+      : shown
+        ? `${shown} of ${total} match “${search.value.trim()}”`
+        : `No resources match “${search.value.trim()}”.`;
   };
+  search.oninput = filter;
+  filter();
 }
 async function forum() {
-  const topics = await api("/content?kind=topic&sort=" + sort);
+  const [topics, replies] = await Promise.all([
+    api("/content?kind=topic&sort=" + sort),
+    api("/content?kind=reply"),
+  ]);
   const selected = new URLSearchParams(location.search).get("topic");
-  const replies = selected ? await api("/content?kind=reply") : [];
   currentItems = [...topics, ...replies];
   const topic = topics.find((x) => x.id === selected);
+  const count = (id) => replies.filter((x) => x.parent === id).length;
+  let body;
+  if (selected && topic) {
+    const own = replies
+      .filter((x) => x.parent === selected)
+      .sort((a, b) => a.created - b.created);
+    body = `<p><a href="/forum" class="inline-action">← All topics</a></p>${itemHtml(topic, { detail: true })}<section class="replies" aria-labelledby="replies-title"><h2 id="replies-title">${own.length} ${own.length === 1 ? "reply" : "replies"}</h2>${own.map((r) => itemHtml(r)).join("")}<button class="secondary" data-reply="${esc(selected)}">Add a reply</button></section>`;
+  } else if (selected) {
+    body =
+      '<p><a href="/forum" class="inline-action">← All topics</a></p><div class="empty"><h2>Topic not found.</h2><p>It may have been removed by moderation.</p></div>';
+  } else {
+    body = `<div class="toolbar">${sortTabs()}</div>${topics.length ? topics.map((t) => itemHtml(t, { replies: count(t.id) })).join("") : '<div class="empty"><h2>No topics yet.</h2><p>Disagree with a finding? Use “Discuss this finding” on a report.</p></div>'}`;
+  }
   $("#view").innerHTML =
-    `<div class="page">${pageHeader("Slop Form", "Questions and challenges to findings, with evidence.", '<button class="primary" id="add-topic">Start a topic</button>')}${selected ? '<p><a href="/forum" class="small muted">All topics</a></p>' : ""}${
-      selected
-        ? topic
-          ? itemHtml(topic) +
-            `<h2 class="more-findings">Replies</h2>` +
-            replies
-              .filter((x) => x.parent === selected)
-              .map(itemHtml)
-              .join("") +
-            `<button class="secondary" data-reply="${esc(selected)}">Add a reply</button>`
-          : '<div class="empty"><h2>Topic not found.</h2><p>It may have been removed by moderation.</p></div>'
-        : topics.length
-          ? topics.map(itemHtml).join("")
-          : '<div class="empty"><h2>No topics yet.</h2><p>Disagree with a finding? Use “Discuss this finding” on a report.</p></div>'
-    }</div>`;
+    `<div class="page">${pageHeader("Slop Form", "Questions and challenges to findings, with evidence.", '<button class="primary" id="add-topic">Start a topic</button>')}${body}</div>`;
   $("#add-topic").onclick = () => contribute("topic");
+  if (topic) titleOverride = `${topic.title} · Slop Form`;
 }
 async function portfolio() {
   const entries = await api("/portfolio");
@@ -630,7 +676,7 @@ async function portfolio() {
 }
 function methodology() {
   $("#view").innerHTML =
-    `<div class="page prose">${pageHeader("How grading works", "Two independent scores and a visible scope.")}<p>Slop Guard reviews observable code quality. Neither score estimates whether a person or an AI wrote the code. Higher scores mean more observed problems, on a scale of 0–100.</p><h2>Deterministic rubric · v1.0</h2><table><thead><tr><th>Signal</th><th>Raw points</th><th>What it means</th></tr></thead><tbody><tr><td>Tautological Python test</td><td>18</td><td>A test body contains only assertions of literal True.</td></tr><tr><td>Identical Python branches</td><td>12</td><td>The two AST branches have identical statements.</td></tr><tr><td>Ruff undefined name F821</td><td>10</td><td>A referenced Python name is not defined.</td></tr><tr><td>TypeScript syntax diagnostic</td><td>8</td><td>Trusted compiler parser rejects the syntax.</td></tr><tr><td>Unused import / variable</td><td>2</td><td>Ruff F401 / F841, with isolated configuration.</td></tr><tr><td>File &gt;500 / function &gt;80 lines</td><td>1 each</td><td>Weak signals, combined cap of 5.</td></tr><tr><td>Comment length or density</td><td>0</td><td>Descriptive metrics only; verbosity is not a defect.</td></tr></tbody></table><p>Normalize substantive points by <code>max(1, inspected lines / 1,000)</code>, round and cap at 95. Add weak style points capped at 5. Each emitted rule/location is unique; separate rules can describe separate issues. Fewer than 10 inspected lines yields “insufficient coverage.” Partial scans describe only their inspected subset.</p><p>Worked example: a 500-line snapshot with one useless test (18) and two unused imports (4) scores 22. A long, useful 100-line comment scores 0. A 2,000-line snapshot with the same findings scores 11.</p><h2>Probabilistic AI Slop</h2><p>When an eligible free review provider is configured (Groq GPT-OSS by default, or Gemini Flash for an eligible pilot), it reviews bounded excerpts for contextual defects. We require a file path, line range, exact quotation, consequence, correction, and acceptance check. Invalid evidence is discarded. Confidence is a model judgment: high findings contribute 18, medium 9, low 3, capped at 100. This is not a calibrated probability. A matching quote confirms the evidence, not the interpretation.</p><h2>What a scan can—and cannot—cover</h2><p>Up to 35 files, 40 KB per file, 280 KB total, in stable path order. Python and JS/TS source only. Generated, binary, minified, vendored, lock, symlink, and submodule content is excluded. No cloning, dependency installation, submitted code execution, or repository-supplied executable configuration. Type checking and dependency-aware JS/TS unused-name checks are explicitly skipped. A bounded README is checked for literal Python or Node commands pointing to missing source scripts, when the tree is complete; working-directory intent still needs review.</p><p>The app publishes coverage and skipped checks. A low score is not proof of correctness. Snapshots and model reviews are cached by commit and review configuration. Mode switches and fix-plan exports make no model calls.</p><h2>Sources behind the approach</h2><ul><li><a href="https://google.github.io/eng-practices/review/reviewer/looking-for.html">Google Engineering Practices: review behavior, tests, and complexity</a></li><li><a href="https://docs.astral.sh/ruff/rules/">Astral: Ruff rules and correctness checks</a></li><li><a href="https://www.typescriptlang.org/docs/handbook/compiler-api.html">Microsoft: TypeScript compiler API</a></li><li><a href="https://ai.google.dev/gemini-api/docs/rate-limits">Google: project quotas and Pacific daily reset</a></li><li><a href="https://ai.google.dev/gemini-api/terms">Google: free-tier terms and audience restrictions</a></li></ul></div>`;
+    `<div class="page prose">${pageHeader("How grading works", "Two independent scores and a visible scope.")}<nav class="toc" aria-label="On this page"><ul><li><a href="#rubric">Deterministic rubric</a></li><li><a href="#ai">Probabilistic AI Slop</a></li><li><a href="#scope">What a scan covers</a></li><li><a href="#sources">Sources</a></li></ul></nav><p>Slop Guard reviews observable code quality. Neither score estimates whether a person or an AI wrote the code. Higher scores mean more observed problems, on a scale of 0–100.</p><h2 id="rubric">Deterministic rubric · v1.0</h2><div class="table-scroll" role="region" aria-label="Deterministic rubric" tabindex="0"><table><caption class="visually-hidden">Deterministic rubric signals and points</caption><thead><tr><th>Signal</th><th>Raw points</th><th>What it means</th></tr></thead><tbody><tr><td>Tautological Python test</td><td>18</td><td>A test body contains only assertions of literal True.</td></tr><tr><td>Identical Python branches</td><td>12</td><td>The two AST branches have identical statements.</td></tr><tr><td>Ruff undefined name F821</td><td>10</td><td>A referenced Python name is not defined.</td></tr><tr><td>TypeScript syntax diagnostic</td><td>8</td><td>Trusted compiler parser rejects the syntax.</td></tr><tr><td>Unused import / variable</td><td>2</td><td>Ruff F401 / F841, with isolated configuration.</td></tr><tr><td>File &gt;500 / function &gt;80 lines</td><td>1 each</td><td>Weak signals, combined cap of 5.</td></tr><tr><td>Comment length or density</td><td>0</td><td>Descriptive metrics only; verbosity is not a defect.</td></tr></tbody></table></div><p>Normalize substantive points by <code>max(1, inspected lines / 1,000)</code>, round and cap at 95. Add weak style points capped at 5. Each emitted rule/location is unique; separate rules can describe separate issues. Fewer than 10 inspected lines yields “insufficient coverage.” Partial scans describe only their inspected subset.</p><p>Worked example: a 500-line snapshot with one useless test (18) and two unused imports (4) scores 22. A long, useful 100-line comment scores 0. A 2,000-line snapshot with the same findings scores 11.</p><h2 id="ai">Probabilistic AI Slop</h2><p>When an eligible free review provider is configured (Groq GPT-OSS by default, or Gemini Flash for an eligible pilot), it reviews bounded excerpts for contextual defects. We require a file path, line range, exact quotation, consequence, correction, and acceptance check. Invalid evidence is discarded. Confidence is a model judgment: high findings contribute 18, medium 9, low 3, capped at 100. This is not a calibrated probability. A matching quote confirms the evidence, not the interpretation.</p><h2 id="scope">What a scan can—and cannot—cover</h2><p>Up to 35 files, 40 KB per file, 280 KB total, in stable path order. Python and JS/TS source only. Generated, binary, minified, vendored, lock, symlink, and submodule content is excluded. No cloning, dependency installation, submitted code execution, or repository-supplied executable configuration. Type checking and dependency-aware JS/TS unused-name checks are explicitly skipped. A bounded README is checked for literal Python or Node commands pointing to missing source scripts, when the tree is complete; working-directory intent still needs review.</p><p>The app publishes coverage and skipped checks. A low score is not proof of correctness. Snapshots and model reviews are cached by commit and review configuration. Mode switches and fix-plan exports make no model calls.</p><h2 id="sources">Sources behind the approach</h2><ul><li><a href="https://google.github.io/eng-practices/review/reviewer/looking-for.html">Google Engineering Practices: review behavior, tests, and complexity</a></li><li><a href="https://docs.astral.sh/ruff/rules/">Astral: Ruff rules and correctness checks</a></li><li><a href="https://www.typescriptlang.org/docs/handbook/compiler-api.html">Microsoft: TypeScript compiler API</a></li><li><a href="https://ai.google.dev/gemini-api/docs/rate-limits">Google: project quotas and Pacific daily reset</a></li><li><a href="https://ai.google.dev/gemini-api/terms">Google: free-tier terms and audience restrictions</a></li></ul></div>`;
 }
 async function moderation() {
   const records = await api("/admin");
@@ -669,6 +715,7 @@ function pageTitle(path) {
 }
 function navigate(path, render = true) {
   history.pushState({}, "", path);
+  routedTo = location.pathname + location.search;
   if (render) {
     scrollTo(0, 0);
     route({ focus: true });
@@ -683,13 +730,17 @@ function markRoute() {
     if (current) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
-  const name = pageTitle(path);
+  const name = titleOverride || pageTitle(path);
   document.title = name
     ? `${name} · Slop Guard`
     : "Slop Guard — Make the code better.";
 }
+let routedTo = "";
+let titleOverride = null;
 async function route({ focus = false } = {}) {
   const path = location.pathname;
+  routedTo = location.pathname + location.search;
+  titleOverride = null;
   setMenu(false);
   markRoute();
   try {
@@ -736,7 +787,8 @@ document.addEventListener("click", async (e) => {
   }
   if (el.dataset.sort) {
     sort = el.dataset.sort;
-    route();
+    await route();
+    $(`#view [data-sort="${sort}"]`)?.focus();
   }
   if (el.dataset.vote && needAccount()) {
     try {
@@ -744,7 +796,12 @@ document.addEventListener("click", async (e) => {
         method: "POST",
         body: JSON.stringify({ value: Number(el.dataset.value) }),
       });
-      route();
+      const { vote, dir } = el.dataset;
+      await route();
+      // Keep the keyboard position on the button that was pressed.
+      document
+        .querySelector(`#view [data-vote="${vote}"][data-dir="${dir}"]`)
+        ?.focus();
     } catch (error) {
       notify(error.message);
     }
@@ -794,6 +851,8 @@ document.addEventListener("click", async (e) => {
   }
 });
 window.addEventListener("popstate", () => {
+  // A same-page #anchor also fires popstate; let the browser scroll.
+  if (location.pathname + location.search === routedTo) return;
   mode =
     new URLSearchParams(location.search).get("mode") ||
     localStorage.getItem("slop-mode") ||
